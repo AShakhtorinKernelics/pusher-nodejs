@@ -12,18 +12,21 @@ interface UserConnectionInterface {
 // user service part
 const userConnectionsDb: {
   userId: string;
+  userName: string;
   selfConnectionId: string;
   connectionList: UserConnectionInterface[];
 }[] = [
   {
     // user service part
-    userId: "lehus-id",
+    userId: "lehusUserId",
+    userName: "Lehus",
     selfConnectionId: "",
     connectionList: [],
   },
   {
     // user service part
-    userId: "testUser",
+    userId: "testUserId",
+    userName: "TestUser",
     selfConnectionId: "",
     connectionList: [],
   },
@@ -80,7 +83,7 @@ interface ConnectionRequestInterface {
 const connectionRequestDb: ConnectionRequestInterface[] = [];
 
 enum EventNamesEnum {
-  msgFromConnection = "message",
+  msgFromConnection = "msgFromConnection",
   channelPost = "channelPost",
   directConnectionRequest = "directConnectionRequest",
   connectionAccepted = "connectionAccepted",
@@ -191,7 +194,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         userConnectionId = userData.selfConnectionId;
       } else {
         userConnectionId = uuid.v4();
-        connectionDb.push({
+        const tempConnectionData = {
           connectionId: userConnectionId,
           connectionName: `Self connection ${userData.userId}`,
           connectionType: ConnectionEnum.selfChat,
@@ -199,7 +202,22 @@ export const chatRouterInit = (pusher: Pusher) => {
           participantsCanWrite: false,
           ownerId: userData.userId,
           imageUrl: "",
+        };
+        connectionDb.push(tempConnectionData);
+
+        // update user Data
+
+        const tempUserData = { ...userData };
+        tempUserData.selfConnectionId = userConnectionId;
+
+        tempUserData.connectionList.push({
+          id: tempConnectionData.connectionId,
+          name: tempConnectionData.connectionName,
+          type: tempConnectionData.connectionType,
+          imageUrl: "",
         });
+
+        userConnectionsDb[userDataIndex] = tempUserData;
       }
 
       archiveMsg(userConnectionId, tempMsgPayload);
@@ -251,12 +269,16 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       archiveMsg(connectionId, tempMsgPayload);
 
+      console.log("logs before send msgFromConnection");
+
+      console.log(msgDb);
+
       res.send({
         status: "success",
         data: payload,
       });
     } catch (error) {
-      console.error(`messageReq error:: ${(error as Error).message}`);
+      console.error(`msgFromConnectionReq error:: ${(error as Error).message}`);
       throw error;
     }
   });
@@ -461,6 +483,11 @@ export const chatRouterInit = (pusher: Pusher) => {
         tempConnectionRequestData
       );
 
+      console.log("logs before send directConnectionRequestReq");
+
+      console.log("connection request DB");
+      console.log(connectionRequestDb);
+
       res.send({
         status: "success",
         data: {},
@@ -580,6 +607,14 @@ export const chatRouterInit = (pusher: Pusher) => {
         accepterId: userId,
       });
 
+      console.log("logs before send connectionAcceptedReq");
+
+      console.log("connection request DB");
+      console.log(connectionRequestDb);
+
+      console.log("user connections Db");
+      console.log(userConnectionsDb);
+
       res.send({
         status: "success",
         data: {},
@@ -633,6 +668,14 @@ export const chatRouterInit = (pusher: Pusher) => {
         rejecterId: userId,
       });
 
+      console.log("logs before send connectionRejectedReq");
+
+      console.log("connection request DB");
+      console.log(connectionRequestDb);
+
+      console.log("user connections Db");
+      console.log(userConnectionsDb);
+
       res.send({
         status: "success",
         data: {},
@@ -673,6 +716,9 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       const history = getArchiveMsgList(connectionId);
 
+      console.log("getHistoryReq logs");
+      console.log(msgDb);
+
       res.send({
         status: "success",
         data: history,
@@ -691,6 +737,9 @@ export const chatRouterInit = (pusher: Pusher) => {
       );
 
       const requesterList = requesterData ? requesterData.requesters : [];
+
+      console.log("getRequestersList logs");
+      console.log(connectionRequestDb);
 
       res.send({
         status: "success",
