@@ -155,10 +155,59 @@ export const chatRouterInit = (pusher: Pusher) => {
 
   router.post("/writeSelf", (req: Request, res: Response) => {
     try {
+      const {
+        userId,
+        payload,
+      }: { userId: string; payload: msgPayloadInterface } = req.body;
 
-    //   const { userId, msgPayload }: { userId: string } = req.body;
+      let userDataIndex;
 
-    //   const;
+      const userData = userConnectionsDb.find((userData, index) => {
+        if (userData.userId === userId) {
+          userDataIndex = index;
+          return true;
+        }
+      });
+
+      if (!userData || !userDataIndex) {
+        console.log("no such user");
+        throw Error("no such user!!!"); // TODO throw error here
+      }
+
+      // create msg
+
+      const msgUuid = uuid.v4();
+
+      const tempMsgPayload: archivedMsg = {
+        id: msgUuid,
+        msgPayload: payload,
+      };
+
+      // find connection
+
+      let userConnectionId;
+
+      if (userData.selfConnectionId) {
+        userConnectionId = userData.selfConnectionId;
+      } else {
+        userConnectionId = uuid.v4();
+        connectionDb.push({
+          connectionId: userConnectionId,
+          connectionName: `Self connection ${userData.userId}`,
+          connectionType: ConnectionEnum.selfChat,
+          participants: [],
+          participantsCanWrite: false,
+          ownerId: userData.userId,
+          imageUrl: "",
+        });
+      }
+
+      archiveMsg(userConnectionId, tempMsgPayload);
+
+      res.send({
+        status: "success",
+        data: {},
+      });
     } catch (error) {
       console.error(`writeSelfReq error:: ${(error as Error).message}`);
       throw error;
@@ -209,6 +258,34 @@ export const chatRouterInit = (pusher: Pusher) => {
     } catch (error) {
       console.error(`messageReq error:: ${(error as Error).message}`);
       throw error;
+    }
+  });
+
+  router.post("/channelCreation", (req: Request, res: Response) => {
+    try {
+      const { userId }: { userId: string } = req.body;
+
+      const connectionId = uuid.v4();
+
+      const connectionData = {
+        connectionId: connectionId,
+        connectionName: `channel Created By ${userId}`,
+        connectionType: ConnectionEnum.channel,
+        participants: [],
+        participantsCanWrite: false,
+        ownerId: userId,
+        imageUrl: "",
+      };
+
+      connectionDb.push(connectionData);
+
+      res.send({
+        status: "success",
+        data: { connectionId: connectionId },
+      });
+    } catch (err) {
+      console.error(`channelCreationReq error:: ${(err as Error).message}`);
+      throw err;
     }
   });
 
