@@ -19,7 +19,7 @@ const app = express();
 app.set("trust proxy", true);
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN,
+    origin: ["http://localhost:3000", "http://localhost:3001"],
   })
 );
 app.use(urlencoded({ extended: false }));

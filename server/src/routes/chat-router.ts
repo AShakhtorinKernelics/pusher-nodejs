@@ -1,5 +1,5 @@
 import express, { Response, Request } from "express";
-import uuid from "uuid";
+import { v4 as uuid } from "uuid";
 import Pusher from "pusher";
 
 interface UserConnectionInterface {
@@ -179,7 +179,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         }
       });
 
-      if (!userData || !userDataIndex) {
+      if (!userData || typeof userDataIndex === "undefined") {
         console.log("no such user");
         throw Error("no such user!!!"); // TODO throw error here
       }
@@ -188,7 +188,7 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       // create msg
 
-      const msgUuid = uuid.v4();
+      const msgUuid = uuid();
 
       const tempMsgPayload: archivedMsg = {
         id: msgUuid,
@@ -277,7 +277,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         pusher.trigger(reciever, EventNamesEnum.msgFromConnection, payload);
       });
 
-      const msgUuid = uuid.v4();
+      const msgUuid = uuid();
 
       const tempMsgPayload: archivedMsg = {
         id: msgUuid,
@@ -304,7 +304,7 @@ export const chatRouterInit = (pusher: Pusher) => {
     try {
       const { userId }: { userId: string } = req.body;
 
-      const connectionId = uuid.v4();
+      const connectionId = uuid();
 
       const connectionData = {
         connectionId: connectionId,
@@ -344,7 +344,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         }
       });
 
-      if (!userData || !userDataIndex) {
+      if (!userData || typeof userDataIndex === "undefined") {
         console.log("no such user");
         throw Error("no such user!!!"); // TODO throw error here
       }
@@ -358,7 +358,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         return connection.connectionId === connectionId;
       });
 
-      if (!connectionData || !connectionDataIndex) {
+      if (!connectionData || typeof connectionDataIndex === "undefined") {
         console.log("no such connection"); // TODO throw error here
         throw Error("no such connection!!!");
       }
@@ -410,7 +410,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         }
       });
 
-      if (!userData || !userDataIndex) {
+      if (!userData || typeof userDataIndex === "undefined") {
         console.log("no such user");
         throw Error("no such user!!!"); // TODO throw error here
       }
@@ -424,7 +424,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         return connection.connectionId === connectionId;
       });
 
-      if (!connectionData || !connectionDataIndex) {
+      if (!connectionData || typeof connectionDataIndex === "undefined") {
         console.log("no such connection"); // TODO throw error here
         throw Error("no such connection!!!");
       }
@@ -538,7 +538,19 @@ export const chatRouterInit = (pusher: Pusher) => {
         }
       );
 
-      if (!connectionRequestData || !connectionRequestIndex) {
+      console.log("userId");
+      console.log(userId);
+      connectionRequestDb.forEach((test) => {
+        console.log(test);
+      });
+
+      console.log("connection request data");
+      console.log(connectionRequestData);
+
+      if (
+        !connectionRequestData ||
+        typeof connectionRequestIndex === "undefined"
+      ) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
@@ -561,7 +573,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         return userConnections.userId === requesterId;
       });
 
-      if (!requesterConnectionIndex) {
+      if (typeof requesterConnectionIndex === "undefined") {
         console.log("no user found!!!");
         return Error("no user found");
       }
@@ -575,14 +587,14 @@ export const chatRouterInit = (pusher: Pusher) => {
         return userConnections.userId === userId;
       });
 
-      if (!approverConnectionIndex) {
+      if (typeof approverConnectionIndex === "undefined") {
         console.log("no approver found!!!");
         return Error("no approver found");
       }
 
       // adding connection to DB
 
-      const connectionUuid = uuid.v4();
+      const connectionUuid = uuid();
 
       const connectionData = {
         connectionId: connectionUuid,
@@ -673,7 +685,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         }
       );
 
-      if (!connectionRequestData || !connectionRequestIndex) {
+      if (
+        !connectionRequestData ||
+        typeof connectionRequestIndex === "undefined"
+      ) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
@@ -787,6 +802,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         return Error("no approver found");
       }
  */
+
+      console.log("selected connection id list");
+      console.log(selectedConnectionIdList);
+
       const msgHistoryData = selectedConnectionIdList.map((connectionId) => {
         // check !!!! getArchiveMsgList
         const msgList = msgDb.find((msgArchiveData) => {
@@ -798,6 +817,9 @@ export const chatRouterInit = (pusher: Pusher) => {
           msgList,
         };
       });
+
+      console.log("msg history data");
+      console.log(msgHistoryData);
 
       pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
         msgHistory: msgHistoryData,
