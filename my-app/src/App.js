@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pusher from "pusher-js";
-import ChatList from "./components/ChatList";
+import MsgList from "./components/MsgList";
 import ChatBox from "./components/ChatBox";
 import ConnectionList from "./components/ConnectionList";
 import UserList from "./components/UserList";
@@ -21,12 +21,12 @@ class App extends Component {
     this.state = {
       text: "",
       username: "",
-      chats: [],
       connections: [],
       connectionMsgMap: {},
       usersList: [],
       userRequestList: [],
       selectedUser: {},
+      selectedConnection: {},
       userIdForConnectionRequest: "",
     };
   }
@@ -35,7 +35,6 @@ class App extends Component {
     this.setState({
       username: "",
       text: "",
-      chats: [],
       connections: [],
       connectionMsgMap: {},
       usersList: [
@@ -54,6 +53,7 @@ class App extends Component {
       ],
       userRequestList: [],
       selectedUser: {},
+      selectedConnection: {},
       userIdForConnectionRequest: "",
     });
 
@@ -65,9 +65,11 @@ class App extends Component {
     this.rejectUserReq = this.rejectUserReq.bind(this);
     this.handleNewUserConnectionReq =
       this.handleNewUserConnectionReq.bind(this);
+    this.onUserIdChange = this.onUserIdChange.bind(this);
+    this.msgTextChange = this.msgTextChange.bind(this);
   }
 
-  pusherInit() {
+  pusherInit(userId) {
     const pusher = new Pusher(constants.app_key, {
       cluster: constants.app_cluster,
     });
@@ -82,7 +84,7 @@ class App extends Component {
       }
     });
 
-    const channel = pusher.subscribe("chat"); // TODO change pusher id
+    const channel = pusher.subscribe(userId); // TODO change pusher id
 
     channel.bind("pusher:subscription_succeeded", (data) => {
       console.log("after subscription succeded");
@@ -91,17 +93,21 @@ class App extends Component {
         requesterId: this.state.selectedUser.userId,
       });
 
-      axios.post(
-        "http://getHistoryBySelectedConnections:5000/getHistoryBySelectedConnections",
-        {
-          selectedConnectionIdList: [...this.state.selectedUser.connectionList],
-        }
-      );
+      axios.post("http://localhost:5000/getHistoryBySelectedConnections", {
+        userId: this.state.selectedUser.userId,
+        selectedConnectionIdList: [...this.state.selectedUser.connectionList],
+      });
     });
 
     channel.bind(EventNamesEnum.msgFromConnection, (data) => {
       console.log("msgFromConnection event");
-      this.setState({ chats: [...this.state.chats, data], test: "" });
+
+      const { connectionId, payload } = data;
+
+      let tempState = { ...this.state.connectionMsgMap };
+      tempState[connectionId].push({ ...payload });
+
+      this.setState({ connectionMsgMap: tempState });
     });
 
     channel.bind(EventNamesEnum.channelPost, (data) => {
@@ -174,16 +180,16 @@ class App extends Component {
 
     channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
-
-      let currentState = { ...this.state.connectionMsgMap };
-      data.forEach((connectionHistory) => {
-        currentState[connectionHistory.connectionId] = [
+      console.log(data);
+      let tempState = { ...this.state.connectionMsgMap };
+      data.msgHistory.forEach((connectionHistory) => {
+        tempState[connectionHistory.connectionId] = [
           ...connectionHistory.msgList,
         ];
       });
 
       this.setState({
-        connectionMsgMap: currentState,
+        connectionMsgMap: tempState,
       });
     });
 
@@ -204,10 +210,15 @@ class App extends Component {
 
   handleNewMsg(e) {
     const payload = {
-      username: this.state.username,
-      message: this.state.text,
+      senderId: this.state.selectedUser.userId,
+      senderName: this.state.selectedUser.userName,
+      text: this.state.text,
     };
-    axios.post("http://localhost:5000/message", payload);
+
+    axios.post("http://localhost:5000/sendMessageToConnection", {
+      connectionId: this.state.selectedConnection.id,
+      payload,
+    });
   }
 
   handleUsernameChange(e) {
@@ -224,12 +235,25 @@ class App extends Component {
       connections: [...selectedUser.connectionList],
     });
 
-    this.pusherInit();
+    this.pusherInit(selectedUser.userId);
   }
 
   selectConnection(e) {
     console.log("select connection");
-    console.log(e);
+    console.log(e); // connectionId
+
+    const connectionData = this.state.connections.find(
+      (connection) => connection.id === e
+    );
+
+    console.log("connectionData");
+    console.log(connectionData);
+
+    console.log(this.state.connections);
+
+    this.setState({
+      selectedConnection: connectionData,
+    });
   }
 
   acceptUserReq(e) {
@@ -252,7 +276,7 @@ class App extends Component {
     });
   }
 
-  handleNewUserConnectionReq() {
+  handleNewUserConnectionReq(e) {
     console.log("Handle new user request");
     console.log("Req userId");
     console.log(this.state.userIdForConnectionRequest);
@@ -261,6 +285,18 @@ class App extends Component {
       userId: this.state.userIdForConnectionRequest,
       requesterId: this.state.selectedUser.userId,
       requesterName: this.state.selectedUser.userName,
+    });
+  }
+
+  onUserIdChange(e) {
+    this.setState({
+      userIdForConnectionRequest: e.target.value,
+    });
+  }
+
+  msgTextChange(e) {
+    this.setState({
+      text: e.target.value,
     });
   }
 
@@ -275,11 +311,21 @@ class App extends Component {
             />
           </div>
           <section style={{ display: "flex" }}>
-            <ChatList chats={this.state.chats} />
+            <MsgList
+              selectedConnectionId={this.state.selectedConnection.id}
+              msgList={
+                this.state.selectedConnection.id
+                  ? this.state.connectionMsgMap[
+                      this.state.selectedConnection.id
+                    ]
+                  : []
+              }
+            />
             <ChatBox
               text={this.state.text}
               username={this.state.username}
               handleNewMsg={this.handleNewMsg}
+              msgTextChange={this.msgTextChange}
             />
           </section>
         </div>
@@ -295,8 +341,9 @@ class App extends Component {
             rejectUserReq={this.rejectUserReq}
           />
           <UserConnectionRequest
-            reqUsername={this.state.userIdForConnectionRequest}
+            userIdForConnectionRequest={this.state.userIdForConnectionRequest}
             handleNewUserConnectionReq={this.handleNewUserConnectionReq}
+            onUserIdChange={this.onUserIdChange}
           />
         </div>
       </div>

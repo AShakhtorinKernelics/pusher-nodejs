@@ -259,23 +259,29 @@ export const chatRouterInit = (pusher: Pusher) => {
       const connection = connectionDb.find(
         (connection) => connection.connectionId === connectionId
       );
+
+      console.log("recieved connectionId");
+      console.log(connectionId);
+
+      console.log("connection data");
+
+      connectionDb.forEach((connectionData) => {
+        console.log(connectionData);
+      });
+
       if (!connection) {
         console.log("Connection search Error!!!!"); // TODO throw error here
         throw Error("no such connection");
       }
 
-      let msgRecievers = [];
+      //   let msgRecievers = [];
 
       checkWritingPermissions(connection, payload.senderId);
 
-      msgRecievers = getMsgRecieversList(
+      /*  msgRecievers = getMsgRecieversList(
         payload.senderId,
         connection.participants
-      );
-
-      msgRecievers.forEach((reciever) => {
-        pusher.trigger(reciever, EventNamesEnum.msgFromConnection, payload);
-      });
+      ); */
 
       const msgUuid = uuid();
 
@@ -285,6 +291,13 @@ export const chatRouterInit = (pusher: Pusher) => {
       };
 
       archiveMsg(connectionId, tempMsgPayload); // TODO could be event
+
+      connection.participants.forEach((reciever) => {
+        pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
+          connectionId: connectionId,
+          payload: tempMsgPayload,
+        });
+      });
 
       console.log("logs before send msgFromConnection");
 

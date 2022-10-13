@@ -1,6 +1,6 @@
 import React from "react";
 import "./ChatBox.css";
-export default ({ text, username, handleNewMsg }) => (
+export default ({ text, username, msgTextChange, handleNewMsg }) => (
   <div style={{ border: "2px solid black" }}>
     <div className="row">
       <div className="col-xs-12">
@@ -12,15 +12,12 @@ export default ({ text, username, handleNewMsg }) => (
               value={text}
               placeholder="chat here..."
               className="form-control"
-/*               onChange={handleNewMsg}
-              onKeyDown={handleNewMsg} */
+              onChange={msgTextChange}
+              onKeyDown={msgTextChange}
             />
-            <button
-                    type="button"
-                    onClick={() => handleNewMsg()}
-                  >
-                    Send msg
-                  </button>
+            <button type="button" onClick={() => handleNewMsg()}>
+              Send msg
+            </button>
           </div>
           <div className="clearfix"></div>
         </div>

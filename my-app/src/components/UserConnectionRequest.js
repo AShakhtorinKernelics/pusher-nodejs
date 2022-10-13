@@ -1,6 +1,10 @@
 import React from "react";
 import "./ChatBox.css";
-export default ({ userIdForConnectionRequest, handleNewUserConnectionReq }) => (
+export default ({
+  userIdForConnectionRequest,
+  handleNewUserConnectionReq,
+  onUserIdChange,
+}) => (
   <div style={{ border: "2px solid black" }}>
     <div className="row">
       <div className="col-xs-12">
@@ -12,8 +16,8 @@ export default ({ userIdForConnectionRequest, handleNewUserConnectionReq }) => (
               value={userIdForConnectionRequest}
               placeholder="chat here..."
               className="form-control"
-              /*               onChange={handleNewMsg}
-              onKeyDown={handleNewMsg} */
+              onChange={onUserIdChange}
+              onKeyDown={onUserIdChange}
             />
             <button type="button" onClick={() => handleNewUserConnectionReq()}>
               Send msg

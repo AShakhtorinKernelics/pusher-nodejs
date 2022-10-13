@@ -19,9 +19,10 @@ export default ({ users, selectUser }) => (
                 <div className="box">
                   <p>
                     <strong>
-                      {selectUser === user.userId
-                        ? "SELECTED USER: " + user.userName
-                        : user.userName}
+                      {"USER NAME----" +
+                        user.userName +
+                        " ---- USER ID" +
+                        user.userId}
                     </strong>
                   </p>
                 </div>
