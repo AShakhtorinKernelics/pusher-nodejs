@@ -1,32 +1,33 @@
 import React from "react";
 import "./ChatList.css";
 
-={this.state.userRequestList}
-={this.acceptUserReq}
-
-export default ({ userRequestList, acceptUserReq }) => (
+export default ({ userRequestList, acceptUserReq, rejectUserReq }) => (
   <ul style={{ border: "2px solid red" }}>
     <p>
-      <strong>User List</strong>
+      <strong>Requests List</strong>
     </p>
     {userRequestList.map((userRequest) => {
       return (
         <div>
           <div className="row show-grid">
             <div className="col-xs-12">
-              <div
-                className="chatMessage"
-                key={user.userId}
-                onClick={() => selectUser(user.userId)}
-              >
+              <div className="chatMessage" key={userRequest.userId}>
                 <div className="box">
                   <p>
-                    <strong>
-                      {selectUser === user.userId
-                        ? "SELECTED USER: " + user.userName
-                        : user.userName}
-                    </strong>
+                    <strong>{userRequest.userName}</strong>
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => acceptUserReq(userRequest.userId)}
+                  >
+                    Approve connection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rejectUserReq(userRequest.userId)}
+                  >
+                    Reject connection
+                  </button>
                 </div>
               </div>
             </div>

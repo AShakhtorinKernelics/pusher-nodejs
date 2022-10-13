@@ -6,8 +6,13 @@ import ChatBox from "./components/ChatBox";
 import ConnectionList from "./components/ConnectionList";
 import UserList from "./components/UserList";
 import UserRequest from "./components/UserRequest";
+import UserConnectionRequest from "./components/UserConnectionRequest";
 import logo from "./logo.svg";
-import { constants } from "./constants/constants";
+import {
+  constants,
+  MQEventNamesEnum,
+  EventNamesEnum,
+} from "./constants/constants";
 import "./App.css";
 
 class App extends Component {
@@ -18,9 +23,11 @@ class App extends Component {
       username: "",
       chats: [],
       connections: [],
+      connectionMsgMap: {},
       usersList: [],
       userRequestList: [],
       selectedUser: {},
+      userIdForConnectionRequest: "",
     };
   }
 
@@ -30,6 +37,7 @@ class App extends Component {
       text: "",
       chats: [],
       connections: [],
+      connectionMsgMap: {},
       usersList: [
         {
           userId: "lehusUserId",
@@ -41,28 +49,22 @@ class App extends Component {
           userId: "testUserId",
           userName: "TestUser",
           selfConnectionId: "",
-          connectionList: [
-            {
-              // user service part
-              userId: "lehusUserId",
-              userName: "Lehus",
-              selfConnectionId: "",
-              connectionList: [],
-            },
-          ],
+          connectionList: [],
         },
       ],
       userRequestList: [],
       selectedUser: {},
+      userIdForConnectionRequest: "",
     });
 
-    this.pusherInit();
-
-    this.handleTextChange = this.handleTextChange.bind(this);
+    this.handleNewMsg = this.handleNewMsg.bind(this);
     this.handleUsernameChange = this.handleUsernameChange.bind(this);
     this.selectUser = this.selectUser.bind(this);
     this.selectConnection = this.selectConnection.bind(this);
     this.acceptUserReq = this.acceptUserReq.bind(this);
+    this.rejectUserReq = this.rejectUserReq.bind(this);
+    this.handleNewUserConnectionReq =
+      this.handleNewUserConnectionReq.bind(this);
   }
 
   pusherInit() {
@@ -80,31 +82,115 @@ class App extends Component {
       }
     });
 
-    const channel = pusher.subscribe("chat"); // change pusher id
+    const channel = pusher.subscribe("chat"); // TODO change pusher id
 
-    channel.bind("msgFromConnection", (data) => {
+    channel.bind("pusher:subscription_succeeded", (data) => {
+      console.log("after subscription succeded");
+
+      axios.post("http://localhost:5000/getRequestersList", {
+        requesterId: this.state.selectedUser.userId,
+      });
+
+      axios.post(
+        "http://getHistoryBySelectedConnections:5000/getHistoryBySelectedConnections",
+        {
+          selectedConnectionIdList: [...this.state.selectedUser.connectionList],
+        }
+      );
+    });
+
+    channel.bind(EventNamesEnum.msgFromConnection, (data) => {
       console.log("msgFromConnection event");
       this.setState({ chats: [...this.state.chats, data], test: "" });
     });
 
-    channel.bind("channelPost", (data) => {
+    channel.bind(EventNamesEnum.channelPost, (data) => {
       console.log("channelPost event");
     });
 
-    channel.bind("directConnectionRequest", (data) => {
+    channel.bind(EventNamesEnum.directConnectionRequest, (data) => {
       console.log("directConnectionRequest event");
+
+      const { userId, userName } = data;
+      const tempRequestList = [...this.state.userRequestList];
+      tempRequestList.push({
+        userId,
+        userName,
+      });
+
+      this.setState({ userRequestList: tempRequestList });
     });
 
-    channel.bind("connectionAccepted", (data) => {
+    channel.bind(EventNamesEnum.connectionAccepted, (data) => {
       console.log("connectionAccepted event");
+
+      const {
+        requesterId,
+        accepterId,
+        connectionUuid,
+        connectionName,
+        connectionType,
+        imageUrl,
+      } = data;
+
+      const currentUserData = this.state.selectedUser;
+
+      if (currentUserData.userId === accepterId) {
+        const tempUserRequestList = this.state.userRequestList.filter(
+          (userRequest) => userRequest.userId !== requesterId
+        );
+        this.setState({ userRequestList: tempUserRequestList });
+      }
+
+      const connectionList = [...this.state.connections];
+      connectionList.unshift({
+        id: connectionUuid,
+        name: connectionName,
+        type: connectionType,
+        imageUrl: imageUrl,
+      });
+
+      const tempConnectionMsgMap = { ...this.state.connectionMsgMap };
+      tempConnectionMsgMap[connectionUuid] = [];
+
+      this.setState({ connections: connectionList });
+      this.setState({ connectionMsgMap: tempConnectionMsgMap });
     });
 
-    channel.bind("connectionRejected", (data) => {
+    channel.bind(EventNamesEnum.connectionRejected, (data) => {
       console.log("connectionRejected event");
+
+      const { requesterId, rejecterId } = data;
+
+      if (this.state.currentUserData.userId === rejecterId) {
+        const tempUserRequestList = this.state.userRequestList.filter(
+          (userRequest) => userRequest.userId !== requesterId
+        );
+        this.setState({ userRequestList: tempUserRequestList });
+      }
     });
 
-    channel.bind("getHistory", (data) => {
+    // MQ events
+
+    channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
+
+      let currentState = { ...this.state.connectionMsgMap };
+      data.forEach((connectionHistory) => {
+        currentState[connectionHistory.connectionId] = [
+          ...connectionHistory.msgList,
+        ];
+      });
+
+      this.setState({
+        connectionMsgMap: currentState,
+      });
+    });
+
+    channel.bind(MQEventNamesEnum.getRequesters, (data) => {
+      console.log("getRequesters event");
+
+      this.setState({ userRequestList: data.requesters });
     });
   }
 
@@ -116,16 +202,12 @@ class App extends Component {
     });
   } */
 
-  handleTextChange(e) {
-    if (e.keyCode === 13) {
-      const payload = {
-        username: this.state.username,
-        message: this.state.text,
-      };
-      axios.post("http://localhost:5000/message", payload);
-    } else {
-      this.setState({ text: e.target.value });
-    }
+  handleNewMsg(e) {
+    const payload = {
+      username: this.state.username,
+      message: this.state.text,
+    };
+    axios.post("http://localhost:5000/message", payload);
   }
 
   handleUsernameChange(e) {
@@ -133,9 +215,8 @@ class App extends Component {
   }
 
   selectUser(e) {
-    console.log("select user");
-    console.log(e);
     console.log("selected user");
+    console.log(e);
     const selectedUser = this.state.usersList.find((user) => user.userId === e);
 
     this.setState({
@@ -143,8 +224,7 @@ class App extends Component {
       connections: [...selectedUser.connectionList],
     });
 
-    console.log("selected user");
-    console.log(this.state.selectedUser);
+    this.pusherInit();
   }
 
   selectConnection(e) {
@@ -154,7 +234,34 @@ class App extends Component {
 
   acceptUserReq(e) {
     console.log("Accept user request");
-    console.log(e);
+    console.log(e); // userId
+
+    axios.post("http://localhost:5000/connectionAccepted", {
+      userId: this.state.selectedUser.userId,
+      requesterId: e,
+    });
+  }
+
+  rejectUserReq(e) {
+    console.log("Reject user request");
+    console.log(e); // userId
+
+    axios.post("http://localhost:5000/connectionRejected", {
+      userId: this.state.selectedUser.userId,
+      requesterId: e,
+    });
+  }
+
+  handleNewUserConnectionReq() {
+    console.log("Handle new user request");
+    console.log("Req userId");
+    console.log(this.state.userIdForConnectionRequest);
+
+    axios.post("http://localhost:5000/directConnectionRequest", {
+      userId: this.state.userIdForConnectionRequest,
+      requesterId: this.state.selectedUser.userId,
+      requesterName: this.state.selectedUser.userName,
+    });
   }
 
   render() {
@@ -172,8 +279,7 @@ class App extends Component {
             <ChatBox
               text={this.state.text}
               username={this.state.username}
-              handleTextChange={this.handleTextChange}
-              handleUsernameChange={this.handleUsernameChange}
+              handleNewMsg={this.handleNewMsg}
             />
           </section>
         </div>
@@ -186,6 +292,11 @@ class App extends Component {
           <UserRequest
             userRequestList={this.state.userRequestList}
             acceptUserReq={this.acceptUserReq}
+            rejectUserReq={this.rejectUserReq}
+          />
+          <UserConnectionRequest
+            reqUsername={this.state.userIdForConnectionRequest}
+            handleNewUserConnectionReq={this.handleNewUserConnectionReq}
           />
         </div>
       </div>

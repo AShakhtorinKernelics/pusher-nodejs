@@ -11,6 +11,7 @@ interface UserConnectionInterface {
 
 // user service part
 const userConnectionsDb: {
+  // hash by userId
   userId: string;
   userName: string;
   selfConnectionId: string;
@@ -64,6 +65,7 @@ enum ConnectionEnum {
 }
 
 const connectionDb: connectionInteface[] = [
+  // hash by connectionId
   {
     connectionId: "testConnection",
     connectionName: "testConnectionName",
@@ -80,7 +82,7 @@ interface ConnectionRequestInterface {
   requesters: { userId: string; userName: string }[];
 }
 
-const connectionRequestDb: ConnectionRequestInterface[] = [];
+const connectionRequestDb: ConnectionRequestInterface[] = []; // hash by userId
 
 enum EventNamesEnum {
   msgFromConnection = "msgFromConnection",
@@ -88,7 +90,11 @@ enum EventNamesEnum {
   directConnectionRequest = "directConnectionRequest",
   connectionAccepted = "connectionAccepted",
   connectionRejected = "connectionRejected",
-  getHistory = "getHistory",
+}
+
+enum MQEventNamesEnum {
+  getAllHistory = "getHistory",
+  getRequesters = "getRequesters",
 }
 
 interface eventInterface {
@@ -163,6 +169,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         payload,
       }: { userId: string; payload: msgPayloadInterface } = req.body;
 
+      // TODO !! runs on another service -> possibly will be removed because of the accessToken as prove of existance
       let userDataIndex;
 
       const userData = userConnectionsDb.find((userData, index) => {
@@ -177,6 +184,8 @@ export const chatRouterInit = (pusher: Pusher) => {
         throw Error("no such user!!!"); // TODO throw error here
       }
 
+      //
+
       // create msg
 
       const msgUuid = uuid.v4();
@@ -188,27 +197,34 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       // find connection
 
-      let userConnectionId;
+      //   let userConnectionId;
+
+      /* 
+                    !!!!!!!!!!!!!!!!TODO Implement self connection creation after user created on if(!selfConnection)
 
       if (userData.selfConnectionId) {
-        userConnectionId = userData.selfConnectionId;
+        userConnectionId = userData.selfConnectionId; // TODO userData usage should be transformed to req parameter
       } else {
         userConnectionId = uuid.v4();
         const tempConnectionData = {
           connectionId: userConnectionId,
-          connectionName: `Self connection ${userData.userId}`,
+          connectionName: `Self connection ${userData.userId}`,  // TODO userData usage should be transformed to req parameter
           connectionType: ConnectionEnum.selfChat,
           participants: [],
           participantsCanWrite: false,
-          ownerId: userData.userId,
+          ownerId: userData.userId,  // TODO userData usage should be transformed to req parameter
           imageUrl: "",
         };
         connectionDb.push(tempConnectionData);
 
         // update user Data
 
+        // !!!!!!!!!!!!!!!!!!!!!!!!! TODO separate self connection id update in user service 
+
         const tempUserData = { ...userData };
         tempUserData.selfConnectionId = userConnectionId;
+
+        //
 
         tempUserData.connectionList.push({
           id: tempConnectionData.connectionId,
@@ -218,9 +234,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         });
 
         userConnectionsDb[userDataIndex] = tempUserData;
+        // sdf
       }
-
-      archiveMsg(userConnectionId, tempMsgPayload);
+ */
+      archiveMsg(userData.selfConnectionId, tempMsgPayload); // TODO could be event
 
       res.send({
         status: "success",
@@ -267,7 +284,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         msgPayload: payload,
       };
 
-      archiveMsg(connectionId, tempMsgPayload);
+      archiveMsg(connectionId, tempMsgPayload); // TODO could be event
 
       console.log("logs before send msgFromConnection");
 
@@ -505,11 +522,9 @@ export const chatRouterInit = (pusher: Pusher) => {
       const {
         userId,
         requesterId,
-        requesterName,
       }: {
         userId: string;
         requesterId: string;
-        requesterName: string;
       } = req.body;
 
       // clean from requesters -> get userId from there for both and add to DB
@@ -534,6 +549,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         );
 
       // check requester existance
+
+      // TODO replace below with EXTRA req to user-service -> future answer is sent via event from user-service
+
+      // first request to user-service -> than emit event to connection service -> emit Pusher event
 
       let requesterConnectionIndex;
 
@@ -577,7 +596,7 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       connectionDb.push(connectionData);
 
-      // adding connection to requester
+      // adding connection to requester TODO move this logic to user-service
 
       userConnectionsDb[requesterConnectionIndex].connectionList.push({
         id: connectionUuid,
@@ -600,11 +619,19 @@ export const chatRouterInit = (pusher: Pusher) => {
       pusher.trigger(requesterId, EventNamesEnum.connectionAccepted, {
         requesterId,
         accepterId: userId,
+        connectionUuid: connectionUuid,
+        connectionName: connectionData.connectionName,
+        connectionType: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
       });
 
       pusher.trigger(userId, EventNamesEnum.connectionAccepted, {
         requesterId,
         accepterId: userId,
+        connectionUuid: connectionUuid,
+        connectionName: connectionData.connectionName,
+        connectionType: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
       });
 
       console.log("logs before send connectionAcceptedReq");
@@ -632,11 +659,9 @@ export const chatRouterInit = (pusher: Pusher) => {
       const {
         userId,
         requesterId,
-        requesterName,
       }: {
         userId: string;
         requesterId: string;
-        requesterName: string;
       } = req.body;
 
       let connectionRequestIndex;
@@ -689,6 +714,7 @@ export const chatRouterInit = (pusher: Pusher) => {
   });
 
   router.post("/getHistory", (req: Request, res: Response) => {
+    // TODO refactor
     try {
       const {
         userId,
@@ -719,9 +745,14 @@ export const chatRouterInit = (pusher: Pusher) => {
       console.log("getHistoryReq logs");
       console.log(msgDb);
 
+      pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
+        connectionId,
+        msgList: history,
+      });
+
       res.send({
         status: "success",
-        data: history,
+        data: {},
       });
     } catch (error) {
       console.error(`getHistoryReq error:: ${(error as Error).message}`);
@@ -729,9 +760,63 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
+  router.post("/getHistoryBySelectedConnections", (req, res) => {
+    // !!! transfer to Map(Object)
+    try {
+      const {
+        userId,
+        selectedConnectionIdList,
+      }: {
+        userId: string;
+        selectedConnectionIdList: string[];
+      } = req.body;
+
+      // check user existence
+
+      //   let approverConnectionIndex;
+
+      // TODO user existance approved by access token
+
+      /* const userData = userConnectionsDb.find((userConnections, index) => {
+        approverConnectionIndex = index;
+        return userConnections.userId === userId;
+      });
+
+      if (!approverConnectionIndex) {
+        console.log("no approver found!!!");
+        return Error("no approver found");
+      }
+ */
+      const msgHistoryData = selectedConnectionIdList.map((connectionId) => {
+        // check !!!! getArchiveMsgList
+        const msgList = msgDb.find((msgArchiveData) => {
+          msgArchiveData.connectionId === connectionId;
+        });
+
+        return {
+          connectionId,
+          msgList,
+        };
+      });
+
+      pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
+        msgHistory: msgHistoryData,
+      });
+
+      res.send({
+        status: "success",
+        data: {},
+      });
+    } catch (error) {
+      console.error(`getAllHistoryReq error:: ${(error as Error).message}`);
+      throw error;
+    }
+  });
+
   router.post("/getRequestersList", (req: Request, res: Response) => {
     try {
       const { requesterId }: { requesterId: string } = req.body;
+
       const requesterData = connectionRequestDb.find(
         (connectionReq) => connectionReq.userId === requesterId
       );
@@ -741,9 +826,13 @@ export const chatRouterInit = (pusher: Pusher) => {
       console.log("getRequestersList logs");
       console.log(connectionRequestDb);
 
+      pusher.trigger(requesterId, MQEventNamesEnum.getRequesters, {
+        requesters: [...requesterList],
+      });
+
       res.send({
         status: "success",
-        data: [...requesterList],
+        data: {},
       });
     } catch (error) {
       console.error(`getRequestersList error:: ${(error as Error).message}`);

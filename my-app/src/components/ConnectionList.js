@@ -2,7 +2,7 @@ import React from "react";
 import "./ChatList.css";
 
 export default ({ connections, selectConnection }) => (
-  <ul style={{ border: "2px solid red" }}>
+  <ul style={{ border: "2px solid red", width: "400px", height: "400px" }}>
     <p>
       <strong>Connection List</strong>
     </p>
