@@ -16,13 +16,6 @@ enum ConnectionEnum {
   selfChat = "selfChat",
 }
 
-/* {
-        id: "cb36ba38-8609-4b40-91a8-cde632773be9",
-        name: "myChannel",
-        type: ConnectionEnum.channel,
-        imageUrl: "",
-      }, */
-
 // user service part
 const userConnectionsDb: {
   // hash by userId
@@ -98,12 +91,7 @@ interface connectionInteface {
   participantsCanWrite: boolean;
   imageUrl: string;
 }
-/* {
-              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
-              name: "myChannel",
-              type: ConnectionEnum.channel,
-              imageUrl: "",
-            }, */
+
 const connectionDb: connectionInteface[] = [
   // hash by connectionId
   {
