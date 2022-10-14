@@ -279,9 +279,6 @@ class App extends Component {
 
     channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
-      console.log(data);
-      console.log("msg history");
-      console.log(data.msgHistory[0]);
       let tempState = { ...this.state.connectionMsgMap };
       data.msgHistory.forEach((connectionHistory) => {
         tempState[connectionHistory.connectionId] = [
@@ -328,8 +325,7 @@ class App extends Component {
   }
 
   selectUser(e) {
-    console.log("selected user");
-    console.log(e);
+    console.log('select user');
     const selectedUser = this.state.usersList.find((user) => user.userId === e);
 
     this.setState({
@@ -341,20 +337,10 @@ class App extends Component {
   }
 
   selectConnection(e) {
-    console.log("select connection");
-    console.log(e); // connectionId
-
+    console.log('select connection');
     const connectionData = this.state.connections.find(
       (connection) => connection.id === e
     );
-
-    console.log("connectionData");
-    console.log(connectionData);
-
-    console.log(this.state.connections);
-
-    console.log(connectionData);
-    console.log(this.state.connectionMsgMap);
 
     this.setState({
       selectedConnection: connectionData,
@@ -383,8 +369,6 @@ class App extends Component {
 
   handleNewUserConnectionReq(e) {
     console.log("Handle new user request");
-    console.log("Req userId");
-    console.log(this.state.userIdForConnectionRequest);
 
     axios.post("http://localhost:5000/directConnectionRequest", {
       userId: this.state.userIdForConnectionRequest,
@@ -395,8 +379,6 @@ class App extends Component {
 
   handleNewChannelRequest(e) {
     console.log("Handle new user request");
-    console.log("Req userId");
-    console.log(this.state.userIdForConnectionRequest);
 
     axios.post("http://localhost:5000/channelCreation", {
       userId: this.state.selectedUser.userId,
@@ -432,10 +414,6 @@ class App extends Component {
   }
 
   channelIdForSubscribeChange(e) {
-    console.log(e);
-
-    console.log("target value");
-    console.log(e.target.value);
     this.setState({
       channelIdForSubscribe: e.target.value,
     });
