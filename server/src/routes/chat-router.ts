@@ -60,7 +60,7 @@ interface connectionInteface {
 enum ConnectionEnum {
   multiChat = "multiChat",
   directChat = "directChat",
-  channel = "channek",
+  channel = "channel",
   selfChat = "selfChat",
 }
 
@@ -315,7 +315,8 @@ export const chatRouterInit = (pusher: Pusher) => {
 
   router.post("/channelCreation", (req: Request, res: Response) => {
     try {
-      const { userId }: { userId: string } = req.body;
+      const { userId, channelName }: { userId: string; channelName: string } =
+        req.body;
 
       const connectionId = uuid();
 
@@ -323,7 +324,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         connectionId: connectionId,
         connectionName: `channel Created By ${userId}`,
         connectionType: ConnectionEnum.channel,
-        participants: [],
+        participants: [userId],
         participantsCanWrite: false,
         ownerId: userId,
         imageUrl: "",
@@ -331,9 +332,14 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       connectionDb.push(connectionData);
 
+      /* pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
+        connectionId: connectionId,
+        payload: tempMsgPayload,
+      }); */
+
       res.send({
         status: "success",
-        data: { connectionId: connectionId },
+        data: {},
       });
     } catch (err) {
       console.error(`channelCreationReq error:: ${(err as Error).message}`);
@@ -496,7 +502,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         userName: requesterName,
       };
 
-      if (connectionRequestData && connectionRequestIndex) {
+      if (
+        connectionRequestData &&
+        typeof connectionRequestIndex !== "undefined"
+      ) {
         connectionRequestDb[connectionRequestIndex].requesters.push(
           tempConnectionRequestData
         );
@@ -665,7 +674,7 @@ export const chatRouterInit = (pusher: Pusher) => {
       console.log(connectionRequestDb);
 
       console.log("user connections Db");
-      console.log(userConnectionsDb);
+      console.log({ ...userConnectionsDb });
 
       res.send({
         status: "success",

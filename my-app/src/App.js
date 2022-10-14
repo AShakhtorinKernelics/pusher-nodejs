@@ -7,6 +7,7 @@ import ConnectionList from "./components/ConnectionList";
 import UserList from "./components/UserList";
 import UserRequest from "./components/UserRequest";
 import UserConnectionRequest from "./components/UserConnectionRequest";
+import ChannelCreationRequest from "./components/ChannelCreationRequest";
 import logo from "./logo.svg";
 import {
   constants,
@@ -20,6 +21,7 @@ class App extends Component {
     super(props);
     this.state = {
       text: "",
+      channelName: "",
       username: "",
       connections: [],
       connectionMsgMap: {},
@@ -35,6 +37,7 @@ class App extends Component {
     this.setState({
       username: "",
       text: "",
+      channelName: "",
       connections: [],
       connectionMsgMap: {},
       usersList: [
@@ -67,6 +70,8 @@ class App extends Component {
       this.handleNewUserConnectionReq.bind(this);
     this.onUserIdChange = this.onUserIdChange.bind(this);
     this.msgTextChange = this.msgTextChange.bind(this);
+    this.handleNewChannelRequest = this.handleNewChannelRequest.bind(this);
+    this.onChannelNameChange = this.onChannelNameChange.bind(this);
   }
 
   pusherInit(userId) {
@@ -168,7 +173,10 @@ class App extends Component {
 
       const { requesterId, rejecterId } = data;
 
-      if (this.state.currentUserData.userId === rejecterId) {
+      console.log("rejecterId");
+      console.log(rejecterId);
+
+      if (this.state.selectedUser.userId === rejecterId) {
         const tempUserRequestList = this.state.userRequestList.filter(
           (userRequest) => userRequest.userId !== requesterId
         );
@@ -288,6 +296,17 @@ class App extends Component {
     });
   }
 
+  handleNewChannelRequest(e) {
+    console.log("Handle new user request");
+    console.log("Req userId");
+    console.log(this.state.userIdForConnectionRequest);
+
+    axios.post("http://localhost:5000/channelCreation", {
+      userId: this.state.selectedUser.userId,
+      channelName: this.state.channelName,
+    });
+  }
+
   onUserIdChange(e) {
     this.setState({
       userIdForConnectionRequest: e.target.value,
@@ -297,6 +316,12 @@ class App extends Component {
   msgTextChange(e) {
     this.setState({
       text: e.target.value,
+    });
+  }
+
+  onChannelNameChange(e) {
+    this.setState({
+      channelName: e.target.value,
     });
   }
 
@@ -345,6 +370,13 @@ class App extends Component {
             handleNewUserConnectionReq={this.handleNewUserConnectionReq}
             onUserIdChange={this.onUserIdChange}
           />
+          <div style={{ display: "flex" }}>
+            <ChannelCreationRequest
+              channelName={this.state.channelName}
+              handleNewChannelRequest={this.handleNewChannelRequest}
+              onChannelNameChange={this.onChannelNameChange}
+            />
+          </div>
         </div>
       </div>
     );
