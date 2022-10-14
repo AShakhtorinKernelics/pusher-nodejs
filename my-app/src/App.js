@@ -14,6 +14,7 @@ import {
   constants,
   MQEventNamesEnum,
   EventNamesEnum,
+  ConnectionEnum,
 } from "./constants/constants";
 import "./App.css";
 
@@ -47,13 +48,27 @@ class App extends Component {
           userId: "lehusUserId",
           userName: "Lehus",
           selfConnectionId: "",
-          connectionList: [],
+          connectionList: [
+            {
+              id: "cb36ba38-8609-4b40-91a8-cde632773be9",
+              name: "myChannel",
+              type: ConnectionEnum.channel,
+              imageUrl: "",
+            },
+          ],
         },
         {
           userId: "testUserId",
           userName: "TestUser",
           selfConnectionId: "",
-          connectionList: [],
+          connectionList: [
+            {
+              id: "cb36ba38-8609-4b40-91a8-cde632773be9",
+              name: "myChannel",
+              type: ConnectionEnum.channel,
+              imageUrl: "",
+            },
+          ],
         },
       ],
       userRequestList: [],
@@ -112,7 +127,20 @@ class App extends Component {
     });
 
     channel.bind(EventNamesEnum.msgFromConnection, (data) => {
+      // same callback as below !!
       console.log("msgFromConnection event");
+
+      const { connectionId, payload } = data;
+
+      let tempState = { ...this.state.connectionMsgMap };
+      tempState[connectionId].push({ ...payload });
+
+      this.setState({ connectionMsgMap: tempState });
+    });
+
+    channel.bind(EventNamesEnum.channelPost, (data) => {
+      // same callback as above !!
+      console.log("channelPost event");
 
       const { connectionId, payload } = data;
 
@@ -248,6 +276,8 @@ class App extends Component {
     channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
       console.log(data);
+      console.log("msg history");
+      console.log(data.msgHistory[0]);
       let tempState = { ...this.state.connectionMsgMap };
       data.msgHistory.forEach((connectionHistory) => {
         tempState[connectionHistory.connectionId] = [
@@ -280,6 +310,7 @@ class App extends Component {
       senderId: this.state.selectedUser.userId,
       senderName: this.state.selectedUser.userName,
       text: this.state.text,
+      type: this.state.selectedConnection.type,
     };
 
     axios.post("http://localhost:5000/sendMessageToConnection", {

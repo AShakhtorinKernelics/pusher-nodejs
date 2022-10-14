@@ -9,6 +9,20 @@ interface UserConnectionInterface {
   imageUrl: string;
 }
 
+enum ConnectionEnum {
+  multiChat = "multiChat",
+  directChat = "directChat",
+  channel = "channel",
+  selfChat = "selfChat",
+}
+
+/* {
+        id: "cb36ba38-8609-4b40-91a8-cde632773be9",
+        name: "myChannel",
+        type: ConnectionEnum.channel,
+        imageUrl: "",
+      }, */
+
 // user service part
 const userConnectionsDb: {
   // hash by userId
@@ -57,13 +71,6 @@ interface connectionInteface {
   imageUrl: string;
 }
 
-enum ConnectionEnum {
-  multiChat = "multiChat",
-  directChat = "directChat",
-  channel = "channel",
-  selfChat = "selfChat",
-}
-
 const connectionDb: connectionInteface[] = [
   // hash by connectionId
   {
@@ -100,17 +107,11 @@ enum MQEventNamesEnum {
   getRequesters = "getRequesters",
 }
 
-interface eventInterface {
-  type: EventNamesEnum;
-  sourceConnectionId: string;
-  payload: any;
-  metadata: any;
-}
-
 interface msgPayloadInterface {
   senderId: string;
   senderName: string;
   text: string;
+  type: ConnectionEnum;
 }
 
 export const chatRouterInit = (pusher: Pusher) => {
@@ -253,6 +254,70 @@ export const chatRouterInit = (pusher: Pusher) => {
   });
 
   router.post("/sendMessageToConnection", (req: Request, res: Response) => {
+    try {
+      const {
+        connectionId,
+        payload,
+      }: { connectionId: string; payload: msgPayloadInterface } = req.body;
+
+      const connection = connectionDb.find(
+        (connection) => connection.connectionId === connectionId
+      );
+
+      console.log("recieved connectionId");
+      console.log(connectionId);
+
+      console.log("connection data");
+
+      connectionDb.forEach((connectionData) => {
+        console.log(connectionData);
+      });
+
+      if (!connection) {
+        console.log("Connection search Error!!!!"); // TODO throw error here
+        throw Error("no such connection");
+      }
+
+      //   let msgRecievers = [];
+
+      checkWritingPermissions(connection, payload.senderId);
+
+      /*  msgRecievers = getMsgRecieversList(
+        payload.senderId,
+        connection.participants
+      ); */
+
+      const msgUuid = uuid();
+
+      const tempMsgPayload: archivedMsg = {
+        id: msgUuid,
+        msgPayload: payload,
+      };
+
+      archiveMsg(connectionId, tempMsgPayload); // TODO could be event
+
+      connection.participants.forEach((reciever) => {
+        pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
+          connectionId: connectionId,
+          payload: tempMsgPayload,
+        });
+      });
+
+      console.log("logs before send msgFromConnection");
+
+      console.log(msgDb);
+
+      res.send({
+        status: "success",
+        data: payload,
+      });
+    } catch (error) {
+      console.error(`msgFromConnectionReq error:: ${(error as Error).message}`);
+      throw error;
+    }
+  });
+
+  router.post("/channelPost", (req: Request, res: Response) => {
     try {
       const {
         connectionId,
@@ -861,10 +926,12 @@ export const chatRouterInit = (pusher: Pusher) => {
         const msgList = msgDb.find((msgArchiveData) => {
           msgArchiveData.connectionId === connectionId;
         });
-
         return {
           connectionId,
-          msgList,
+          msgList:
+            msgList && msgList.connectionMessages
+              ? msgList.connectionMessages
+              : [],
         };
       });
 

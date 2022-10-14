@@ -18,3 +18,10 @@ export const MQEventNamesEnum = {
   getHistory: "getHistory",
   getRequesters: "getRequesters",
 };
+
+export const ConnectionEnum = {
+  multiChat: "multiChat",
+  directChat: "directChat",
+  channel: "channel",
+  selfChat: "selfChat",
+};
