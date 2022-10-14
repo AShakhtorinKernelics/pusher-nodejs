@@ -90,6 +90,9 @@ enum EventNamesEnum {
   directConnectionRequest = "directConnectionRequest",
   connectionAccepted = "connectionAccepted",
   connectionRejected = "connectionRejected",
+  channelCreated = "channelCreated",
+  channelSubscribed = "channelSubscribed",
+  channelUnsubscribed = "channelUnsubscribed",
 }
 
 enum MQEventNamesEnum {
@@ -322,7 +325,7 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       const connectionData = {
         connectionId: connectionId,
-        connectionName: `channel Created By ${userId}`,
+        connectionName: `${channelName}`,
         connectionType: ConnectionEnum.channel,
         participants: [userId],
         participantsCanWrite: false,
@@ -332,10 +335,31 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       connectionDb.push(connectionData);
 
-      /* pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
-        connectionId: connectionId,
-        payload: tempMsgPayload,
-      }); */
+      let requesterConnectionIndex;
+
+      userConnectionsDb.find((userConnections, index) => {
+        requesterConnectionIndex = index;
+        return userConnections.userId === userId;
+      });
+
+      if (typeof requesterConnectionIndex === "undefined") {
+        console.log("no user found!!!");
+        return Error("no user found");
+      }
+
+      userConnectionsDb[requesterConnectionIndex].connectionList.push({
+        id: connectionData.connectionId,
+        name: connectionData.connectionName,
+        type: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
+      });
+
+      pusher.trigger(userId, EventNamesEnum.channelCreated, {
+        connectionUuid: connectionData.connectionId,
+        connectionName: connectionData.connectionName,
+        connectionType: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
+      });
 
       res.send({
         status: "success",
@@ -353,7 +377,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         connectionId,
         requesterId,
       }: { connectionId: string; requesterId: string } = req.body;
-
       let userDataIndex;
 
       const userData = userConnectionsDb.find((userData, index) => {
@@ -399,11 +422,16 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       userConnectionsDb[userDataIndex] = { ...tempUserData };
 
+      pusher.trigger(requesterId, EventNamesEnum.channelSubscribed, {
+        connectionUuid: connectionData.connectionId,
+        connectionName: connectionData.connectionName,
+        connectionType: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
+      });
+
       res.send({
         status: "success",
-        data: {
-          connectionId,
-        },
+        data: {},
       });
     } catch (error) {
       console.error(
@@ -462,11 +490,13 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       userConnectionsDb[userDataIndex] = { ...tempUserData };
 
+      pusher.trigger(requesterId, EventNamesEnum.channelUnsubscribed, {
+        connectionUuid: connectionData.connectionId,
+      });
+
       res.send({
         status: "success",
-        data: {
-          connectionId,
-        },
+        data: {},
       });
     } catch (error) {
       console.error(

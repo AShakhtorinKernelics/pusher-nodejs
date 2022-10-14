@@ -9,6 +9,9 @@ export const EventNamesEnum = {
   directConnectionRequest: "directConnectionRequest",
   connectionAccepted: "connectionAccepted",
   connectionRejected: "connectionRejected",
+  channelCreated: "channelCreated",
+  channelSubscribed: "channelSubscribed",
+  channelUnsubscribed: "channelUnsubscribed",
 };
 
 export const MQEventNamesEnum = {

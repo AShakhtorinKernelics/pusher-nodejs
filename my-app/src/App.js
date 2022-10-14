@@ -8,6 +8,7 @@ import UserList from "./components/UserList";
 import UserRequest from "./components/UserRequest";
 import UserConnectionRequest from "./components/UserConnectionRequest";
 import ChannelCreationRequest from "./components/ChannelCreationRequest";
+import ChannelSubscriptionRequest from "./components/ChannelSubscriptionRequest";
 import logo from "./logo.svg";
 import {
   constants,
@@ -30,6 +31,7 @@ class App extends Component {
       selectedUser: {},
       selectedConnection: {},
       userIdForConnectionRequest: "",
+      channelIdForSubscribe: "",
     };
   }
 
@@ -58,6 +60,7 @@ class App extends Component {
       selectedUser: {},
       selectedConnection: {},
       userIdForConnectionRequest: "",
+      channelIdForSubscribe: "",
     });
 
     this.handleNewMsg = this.handleNewMsg.bind(this);
@@ -72,6 +75,10 @@ class App extends Component {
     this.msgTextChange = this.msgTextChange.bind(this);
     this.handleNewChannelRequest = this.handleNewChannelRequest.bind(this);
     this.onChannelNameChange = this.onChannelNameChange.bind(this);
+    this.handleNewChannelSubscriptionRequest =
+      this.handleNewChannelSubscriptionRequest.bind(this);
+    this.channelIdForSubscribeChange =
+      this.channelIdForSubscribeChange.bind(this);
   }
 
   pusherInit(userId) {
@@ -132,6 +139,27 @@ class App extends Component {
       this.setState({ userRequestList: tempRequestList });
     });
 
+    channel.bind(EventNamesEnum.channelCreated, (data) => {
+      console.log("channelCreated event");
+
+      const { connectionUuid, connectionName, connectionType, imageUrl } = data;
+
+      const connectionList = [...this.state.connections];
+
+      connectionList.unshift({
+        id: connectionUuid,
+        name: connectionName,
+        type: connectionType,
+        imageUrl: imageUrl,
+      });
+
+      const tempConnectionMsgMap = { ...this.state.connectionMsgMap };
+      tempConnectionMsgMap[connectionUuid] = [];
+
+      this.setState({ connections: connectionList });
+      this.setState({ connectionMsgMap: tempConnectionMsgMap });
+    });
+
     channel.bind(EventNamesEnum.connectionAccepted, (data) => {
       console.log("connectionAccepted event");
 
@@ -173,15 +201,46 @@ class App extends Component {
 
       const { requesterId, rejecterId } = data;
 
-      console.log("rejecterId");
-      console.log(rejecterId);
-
       if (this.state.selectedUser.userId === rejecterId) {
         const tempUserRequestList = this.state.userRequestList.filter(
           (userRequest) => userRequest.userId !== requesterId
         );
         this.setState({ userRequestList: tempUserRequestList });
       }
+    });
+
+    channel.bind(EventNamesEnum.channelSubscribed, (data) => {
+      console.log("channelSubscribed event");
+
+      const { connectionUuid, connectionName, connectionType, imageUrl } = data;
+      const connectionList = [...this.state.connections];
+      connectionList.unshift({
+        id: connectionUuid,
+        name: connectionName,
+        type: connectionType,
+        imageUrl: imageUrl,
+      });
+
+      const tempConnectionMsgMap = { ...this.state.connectionMsgMap };
+      tempConnectionMsgMap[connectionUuid] = [];
+
+      this.setState({ connections: connectionList });
+      this.setState({ connectionMsgMap: tempConnectionMsgMap });
+    });
+
+    channel.bind(EventNamesEnum.channelUnsubscribed, (data) => {
+      console.log("channelUnsubscribed event");
+
+      const { connectionUuid } = data;
+
+      const connectionList = [...this.state.connections];
+      connectionList.filter((connection) => connection.id === connectionUuid);
+
+      const tempConnectionMsgMap = { ...this.state.connectionMsgMap };
+      delete tempConnectionMsgMap[connectionUuid];
+
+      this.setState({ connections: connectionList });
+      this.setState({ connectionMsgMap: tempConnectionMsgMap });
     });
 
     // MQ events
@@ -307,6 +366,15 @@ class App extends Component {
     });
   }
 
+  handleNewChannelSubscriptionRequest(e) {
+    console.log("Handle new channel subscription");
+
+    axios.post("http://localhost:5000/channelSubscription", {
+      connectionId: this.state.channelIdForSubscribe,
+      requesterId: this.state.selectedUser.userId,
+    });
+  }
+
   onUserIdChange(e) {
     this.setState({
       userIdForConnectionRequest: e.target.value,
@@ -322,6 +390,12 @@ class App extends Component {
   onChannelNameChange(e) {
     this.setState({
       channelName: e.target.value,
+    });
+  }
+
+  channelIdForSubscribeChange(e) {
+    this.setState({
+      channelIdForSubscribeChange: e.target.value,
     });
   }
 
@@ -375,6 +449,13 @@ class App extends Component {
               channelName={this.state.channelName}
               handleNewChannelRequest={this.handleNewChannelRequest}
               onChannelNameChange={this.onChannelNameChange}
+            />
+            <ChannelSubscriptionRequest
+              channelIdForSubscribe={this.state.channelIdForSubscribe}
+              handleNewChannelSubscriptionRequest={
+                this.handleNewChannelSubscriptionRequest
+              }
+              channelIdForSubscribeChange={this.channelIdForSubscribeChange}
             />
           </div>
         </div>
