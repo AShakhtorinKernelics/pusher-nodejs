@@ -20,6 +20,7 @@ export default ({ connections, selectConnection }) => (
                   <p>
                     <strong>{connection.name}</strong>
                   </p>
+                  <p>{connection.id}</p>
                   <p>{connection.type}</p>
                 </div>
               </div>

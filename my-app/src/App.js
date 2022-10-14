@@ -394,8 +394,12 @@ class App extends Component {
   }
 
   channelIdForSubscribeChange(e) {
+    console.log(e);
+
+    console.log("target value");
+    console.log(e.target.value);
     this.setState({
-      channelIdForSubscribeChange: e.target.value,
+      channelIdForSubscribe: e.target.value,
     });
   }
 

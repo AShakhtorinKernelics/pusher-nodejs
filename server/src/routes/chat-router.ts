@@ -405,8 +405,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         throw Error("no such connection!!!");
       }
 
-      checkWritingPermissions(connectionData, requesterId);
-
       // add user to connection
 
       connectionDb[connectionDataIndex].participants.push(userData.userId);
