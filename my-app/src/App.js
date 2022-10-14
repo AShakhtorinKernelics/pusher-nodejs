@@ -50,7 +50,7 @@ class App extends Component {
           selfConnectionId: "",
           connectionList: [
             {
-              id: "cb36ba38-8609-4b40-91a8-cde632773be9",
+              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
               name: "myChannel",
               type: ConnectionEnum.channel,
               imageUrl: "",
@@ -63,7 +63,7 @@ class App extends Component {
           selfConnectionId: "",
           connectionList: [
             {
-              id: "cb36ba38-8609-4b40-91a8-cde632773be9",
+              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
               name: "myChannel",
               type: ConnectionEnum.channel,
               imageUrl: "",
@@ -122,7 +122,11 @@ class App extends Component {
 
       axios.post("http://localhost:5000/getHistoryBySelectedConnections", {
         userId: this.state.selectedUser.userId,
-        selectedConnectionIdList: [...this.state.selectedUser.connectionList],
+        selectedConnectionIdList: [
+          ...this.state.selectedUser.connectionList.map(
+            (connection) => connection.id
+          ),
+        ],
       });
     });
 
@@ -348,6 +352,9 @@ class App extends Component {
     console.log(connectionData);
 
     console.log(this.state.connections);
+
+    console.log(connectionData);
+    console.log(this.state.connectionMsgMap);
 
     this.setState({
       selectedConnection: connectionData,

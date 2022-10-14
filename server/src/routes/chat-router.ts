@@ -36,14 +36,28 @@ const userConnectionsDb: {
     userId: "lehusUserId",
     userName: "Lehus",
     selfConnectionId: "",
-    connectionList: [],
+    connectionList: [
+      {
+        id: "302ec818-b042-4240-bc54-4e6fb80f6636",
+        name: "myChannel",
+        type: ConnectionEnum.channel,
+        imageUrl: "",
+      },
+    ],
   },
   {
     // user service part
     userId: "testUserId",
     userName: "TestUser",
     selfConnectionId: "",
-    connectionList: [],
+    connectionList: [
+      {
+        id: "302ec818-b042-4240-bc54-4e6fb80f6636",
+        name: "myChannel",
+        type: ConnectionEnum.channel,
+        imageUrl: "",
+      },
+    ],
   },
 ];
 
@@ -59,6 +73,20 @@ interface archivedConnectionData {
 
 const msgDb: archivedConnectionData[] = [
   // Try to convert into HashMap In DB
+  {
+    connectionId: "302ec818-b042-4240-bc54-4e6fb80f6636",
+    connectionMessages: [
+      {
+        id: "testID",
+        msgPayload: {
+          senderId: "testUserId",
+          senderName: "testUserId",
+          text: "testText From DB FOR CHANNEl",
+          type: ConnectionEnum.channel,
+        },
+      },
+    ],
+  },
 ];
 
 interface connectionInteface {
@@ -70,16 +98,21 @@ interface connectionInteface {
   participantsCanWrite: boolean;
   imageUrl: string;
 }
-
+/* {
+              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
+              name: "myChannel",
+              type: ConnectionEnum.channel,
+              imageUrl: "",
+            }, */
 const connectionDb: connectionInteface[] = [
   // hash by connectionId
   {
-    connectionId: "testConnection",
-    connectionName: "testConnectionName",
-    connectionType: ConnectionEnum.directChat,
+    connectionId: "302ec818-b042-4240-bc54-4e6fb80f6636",
+    connectionName: "myChannel",
+    connectionType: ConnectionEnum.channel,
     participants: ["lehus-id", "testUser"],
-    participantsCanWrite: true,
-    ownerId: "",
+    participantsCanWrite: false,
+    ownerId: "testUser",
     imageUrl: "",
   },
 ];
@@ -922,15 +955,15 @@ export const chatRouterInit = (pusher: Pusher) => {
       console.log(selectedConnectionIdList);
 
       const msgHistoryData = selectedConnectionIdList.map((connectionId) => {
-        // check !!!! getArchiveMsgList
-        const msgList = msgDb.find((msgArchiveData) => {
-          msgArchiveData.connectionId === connectionId;
+        const msgData = msgDb.find((msgArchiveData) => {
+          return msgArchiveData.connectionId === connectionId;
         });
+
         return {
           connectionId,
           msgList:
-            msgList && msgList.connectionMessages
-              ? msgList.connectionMessages
+            msgData && msgData.connectionMessages.length
+              ? msgData.connectionMessages
               : [],
         };
       });
