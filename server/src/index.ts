@@ -4,6 +4,7 @@ import { urlencoded, json } from "body-parser";
 import { errorHandler, NotFoundError } from "./common/src";
 import Pusher from "pusher";
 import { pusherConfig } from "./utils";
+import mongoose from "mongoose";
 // routes
 import { healthRouter, chatRouterInit } from "./routes";
 
@@ -38,6 +39,11 @@ app.use(errorHandler);
 
 const start = async () => {
   try {
+    if (!process.env.MONGO_URI) {
+      console.log("MONGO URI NOT FOUND");
+      throw new Error("No MONGO_URI key found");
+    }
+    await mongoose.connect(process.env.MONGO_URI);
   } catch (err) {
     console.log(err);
   }
