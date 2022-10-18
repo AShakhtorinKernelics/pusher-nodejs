@@ -17,6 +17,7 @@ export const EventNamesEnum = {
 export const MQEventNamesEnum = {
   getHistory: "getHistory",
   getRequesters: "getRequesters",
+  getConnections: "getConnections",
 };
 
 export const ConnectionEnum = {

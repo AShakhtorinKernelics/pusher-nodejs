@@ -9,7 +9,6 @@ interface msgPayloadInterface {
 }
 
 interface archivedMsg {
-  id: string;
   msgPayload: msgPayloadInterface;
 }
 
@@ -19,7 +18,6 @@ interface ArchivedConnectionDataAttrs {
 }
 
 interface ArchivedConnectionDataDoc extends mongoose.Document {
-  // connectionId as key
   connectionId: string;
   connectionMessages: archivedMsg[];
 }
@@ -45,7 +43,7 @@ const msgPayloadSchema = new mongoose.Schema({
   type: {
     type: String,
     require: true,
-    enum: Object.values(ConnectionEnum),
+    // enum: Object.values(ConnectionEnum),
   },
 });
 

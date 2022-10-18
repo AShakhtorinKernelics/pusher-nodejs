@@ -2,6 +2,8 @@ import React from "react";
 import "./ChatList.css";
 import avatar from "../favicon.png";
 export default ({ selectedConnectionId, msgList }) => {
+  console.log(selectedConnectionId);
+  console.log(msgList);
   if (!selectedConnectionId) {
     return (
       <div>

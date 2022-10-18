@@ -1,6 +1,10 @@
 import express, { Response, Request } from "express";
 import { v4 as uuid } from "uuid";
 import Pusher from "pusher";
+import { Connection } from "../models/Connection";
+import { UserConnectionList } from "../models/UserConnectionList";
+import { ArchivedConnectionData } from "../models/ArchivedConnectionData";
+import { ConnectionRequest } from "../models/ConnectionRequest";
 
 interface UserConnectionInterface {
   id: string;
@@ -16,46 +20,7 @@ export enum ConnectionEnum {
   selfChat = "selfChat",
 }
 
-// user service part
-const userConnectionsDb: {
-  // hash by userId
-  userId: string;
-  userName: string;
-  selfConnectionId: string;
-  connectionList: UserConnectionInterface[];
-}[] = [
-  {
-    // user service part
-    userId: "lehusUserId",
-    userName: "Lehus",
-    selfConnectionId: "",
-    connectionList: [
-      {
-        id: "302ec818-b042-4240-bc54-4e6fb80f6636",
-        name: "myChannel",
-        type: ConnectionEnum.channel,
-        imageUrl: "",
-      },
-    ],
-  },
-  {
-    // user service part
-    userId: "testUserId",
-    userName: "TestUser",
-    selfConnectionId: "",
-    connectionList: [
-      {
-        id: "302ec818-b042-4240-bc54-4e6fb80f6636",
-        name: "myChannel",
-        type: ConnectionEnum.channel,
-        imageUrl: "",
-      },
-    ],
-  },
-];
-
 interface archivedMsg {
-  id: string;
   msgPayload: msgPayloadInterface;
 }
 
@@ -63,24 +28,6 @@ interface archivedConnectionData {
   connectionId: string;
   connectionMessages: archivedMsg[];
 }
-
-const msgDb: archivedConnectionData[] = [
-  // Try to convert into HashMap In DB
-  {
-    connectionId: "302ec818-b042-4240-bc54-4e6fb80f6636",
-    connectionMessages: [
-      {
-        id: "testID",
-        msgPayload: {
-          senderId: "testUserId",
-          senderName: "testUserId",
-          text: "testText From DB FOR CHANNEl",
-          type: ConnectionEnum.channel,
-        },
-      },
-    ],
-  },
-];
 
 interface connectionInteface {
   connectionId: string;
@@ -92,25 +39,10 @@ interface connectionInteface {
   imageUrl: string;
 }
 
-const connectionDb: connectionInteface[] = [
-  // hash by connectionId
-  {
-    connectionId: "302ec818-b042-4240-bc54-4e6fb80f6636",
-    connectionName: "myChannel",
-    connectionType: ConnectionEnum.channel,
-    participants: ["lehus-id", "testUser"],
-    participantsCanWrite: false,
-    ownerId: "testUser",
-    imageUrl: "",
-  },
-];
-
 interface ConnectionRequestInterface {
   userId: string;
   requesters: { userId: string; userName: string }[];
 }
-
-const connectionRequestDb: ConnectionRequestInterface[] = []; // hash by userId
 
 enum EventNamesEnum {
   msgFromConnection = "msgFromConnection",
@@ -126,6 +58,7 @@ enum EventNamesEnum {
 enum MQEventNamesEnum {
   getAllHistory = "getHistory",
   getRequesters = "getRequesters",
+  getConnections = "getConnections",
 }
 
 interface msgPayloadInterface {
@@ -138,13 +71,6 @@ interface msgPayloadInterface {
 export const chatRouterInit = (pusher: Pusher) => {
   const router = express.Router();
 
-  /*   const getMsgRecieversList = (
-    senderId: string,
-    participants: string[]
-  ): string[] => {
-    return participants.filter((participant) => participant !== senderId);
-  }; */
-
   const checkWritingPermissions = (
     connection: connectionInteface,
     senderId: string
@@ -155,25 +81,43 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   };
 
-  const archiveMsg = (connectionId: string, msgPayload: archivedMsg) => {
-    const connectionHistory = msgDb.find(
+  const archiveMsg = async (connectionId: string, msgPayload: archivedMsg) => {
+    /* const connectionHistory = msgDb.find(
       (historyData) => historyData.connectionId === connectionId
-    );
+    ); */
+
+    const connectionHistory = await ArchivedConnectionData.findOne({
+      connectionId,
+    });
 
     if (connectionHistory) {
+      connectionHistory.connectionMessages;
+
       connectionHistory.connectionMessages.push(msgPayload);
+      await connectionHistory.save();
     } else {
-      msgDb.push({
+      const archivedConnectionData = new ArchivedConnectionData({
         connectionId,
         connectionMessages: [msgPayload],
       });
+
+      /* msgDb.push({
+        connectionId,
+        connectionMessages: [msgPayload],
+      }); */
+
+      await archivedConnectionData.save();
     }
   };
 
-  const getArchiveMsgList = (connectionId: string) => {
-    const connectionHistory = msgDb.find(
+  const getArchiveMsgList = async (connectionId: string) => {
+    /* const connectionHistory = msgDb.find(
       (historyData) => historyData.connectionId === connectionId
-    );
+    ); */
+
+    const connectionHistory = await ArchivedConnectionData.findOne({
+      connectionId,
+    });
 
     return connectionHistory ? [...connectionHistory?.connectionMessages] : [];
   };
@@ -187,34 +131,34 @@ export const chatRouterInit = (pusher: Pusher) => {
     );
   };
 
-  router.post("/writeSelf", (req: Request, res: Response) => {
+  router.post("/writeSelf", async (req: Request, res: Response) => {
     try {
       const {
         userId,
         payload,
       }: { userId: string; payload: msgPayloadInterface } = req.body;
 
-      // create msg
-
-      const msgUuid = uuid();
-
       const tempMsgPayload: archivedMsg = {
-        id: msgUuid,
         msgPayload: payload,
       };
 
-      //        !!!!!!!!!!!!!!!! TODO user-service communication Implement self connection creation after user created on if(!selfConnection)
+      const userConnection = await UserConnectionList.findOne({
+        userId,
+      });
 
-      const selfConnection = connectionDb.find(
-        (connection) =>
-          connection.ownerId === userId &&
+      if (!userConnection) {
+        console.log("No such user error!");
+        throw Error("No such user error!");
+      }
+
+      const existingselfConnection = userConnection.connectionList.find(
+        (connection: any) =>
           connection.connectionType === ConnectionEnum.selfChat
       );
 
       let selfConnectionId;
 
-      if (!selfConnection) {
-        // TODO user-service update for selfConnection from
+      if (!existingselfConnection) {
         const userConnectionId = uuid();
 
         const tempConnectionData = {
@@ -227,14 +171,24 @@ export const chatRouterInit = (pusher: Pusher) => {
           imageUrl: "",
         };
 
-        connectionDb.push(tempConnectionData);
+        const selfConnection = new Connection(tempConnectionData);
 
+        await selfConnection.save();
+
+        userConnection.connectionList.push({
+          connectionId: tempConnectionData.connectionId,
+          connectionName: tempConnectionData.connectionName,
+          connectionType: tempConnectionData.connectionType,
+          imageUrl: tempConnectionData.imageUrl,
+        });
+
+        await userConnection.save();
         selfConnectionId = userConnectionId;
       } else {
-        selfConnectionId = selfConnection.connectionId;
+        selfConnectionId = existingselfConnection.connectionId;
       }
 
-      archiveMsg(selfConnectionId, tempMsgPayload); // TODO could be event
+      await archiveMsg(selfConnectionId, tempMsgPayload); // TODO could be event
 
       res.send({
         status: "success",
@@ -246,16 +200,58 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/sendMessageToConnection", (req: Request, res: Response) => {
+  router.post(
+    "/sendMessageToConnection",
+    async (req: Request, res: Response) => {
+      try {
+        const {
+          connectionId,
+          payload,
+        }: { connectionId: string; payload: msgPayloadInterface } = req.body;
+
+        const connection = await Connection.findOne({ connectionId });
+
+        if (!connection) {
+          console.log("Connection search Error!!!!"); // TODO throw error here
+          throw Error("no such connection");
+        }
+
+        checkWritingPermissions(connection, payload.senderId);
+
+        const tempMsgPayload: archivedMsg = {
+          msgPayload: payload,
+        };
+
+        await archiveMsg(connectionId, tempMsgPayload); // TODO could be event
+
+        connection.participants.forEach((reciever) => {
+          pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
+            connectionId: connectionId,
+            payload: tempMsgPayload,
+          });
+        });
+
+        res.send({
+          status: "success",
+          data: {},
+        });
+      } catch (error) {
+        console.error(
+          `msgFromConnectionReq error:: ${(error as Error).message}`
+        );
+        throw error;
+      }
+    }
+  );
+
+  router.post("/channelPost", async (req: Request, res: Response) => {
     try {
       const {
         connectionId,
         payload,
       }: { connectionId: string; payload: msgPayloadInterface } = req.body;
 
-      const connection = connectionDb.find(
-        (connection) => connection.connectionId === connectionId
-      );
+      const connection = await Connection.findOne({ connectionId });
 
       if (!connection) {
         console.log("Connection search Error!!!!"); // TODO throw error here
@@ -264,14 +260,11 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       checkWritingPermissions(connection, payload.senderId);
 
-      const msgUuid = uuid();
-
       const tempMsgPayload: archivedMsg = {
-        id: msgUuid,
         msgPayload: payload,
       };
 
-      archiveMsg(connectionId, tempMsgPayload); // TODO could be event
+      await archiveMsg(connectionId, tempMsgPayload); // TODO could be event
 
       connection.participants.forEach((reciever) => {
         pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
@@ -290,55 +283,11 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/channelPost", (req: Request, res: Response) => {
-    try {
-      const {
-        connectionId,
-        payload,
-      }: { connectionId: string; payload: msgPayloadInterface } = req.body;
-
-      const connection = connectionDb.find(
-        (connection) => connection.connectionId === connectionId
-      );
-
-      if (!connection) {
-        console.log("Connection search Error!!!!"); // TODO throw error here
-        throw Error("no such connection");
-      }
-
-      checkWritingPermissions(connection, payload.senderId);
-
-      const msgUuid = uuid();
-
-      const tempMsgPayload: archivedMsg = {
-        id: msgUuid,
-        msgPayload: payload,
-      };
-
-      archiveMsg(connectionId, tempMsgPayload); // TODO could be event
-
-      connection.participants.forEach((reciever) => {
-        pusher.trigger(reciever, EventNamesEnum.msgFromConnection, {
-          connectionId: connectionId,
-          payload: tempMsgPayload,
-        });
-      });
-
-      res.send({
-        status: "success",
-        data: {},
-      });
-    } catch (error) {
-      console.error(`msgFromConnectionReq error:: ${(error as Error).message}`);
-      throw error;
-    }
-  });
-
-  router.post("/channelCreation", (req: Request, res: Response) => {
+  router.post("/channelCreation", async (req: Request, res: Response) => {
     try {
       const { userId, channelName }: { userId: string; channelName: string } =
         req.body;
-
+      // create and save connection
       const connectionId = uuid();
 
       const connectionData = {
@@ -351,28 +300,27 @@ export const chatRouterInit = (pusher: Pusher) => {
         imageUrl: "",
       };
 
-      connectionDb.push(connectionData);
+      const dbConnectionData = new Connection({ ...connectionData });
 
-      let requesterConnectionIndex;
-
-      // TODO user-service communication
-
-      /*       userConnectionsDb.find((userConnections, index) => {
-        requesterConnectionIndex = index;
-        return userConnections.userId === userId;
+      await dbConnectionData.save();
+      // find  user data and add connectionList
+      const userConnectionListData = await UserConnectionList.findOne({
+        userId,
       });
 
-      if (typeof requesterConnectionIndex === "undefined") {
-        console.log("no user found!!!");
-        return Error("no user found");
+      if (!userConnectionListData) {
+        console.log("No such user error!");
+        throw Error("No such user error!");
       }
 
-      userConnectionsDb[requesterConnectionIndex].connectionList.push({
+      userConnectionListData.connectionList.push({
         id: connectionData.connectionId,
         name: connectionData.connectionName,
         type: connectionData.connectionType,
         imageUrl: connectionData.imageUrl,
-      }); */
+      });
+
+      await userConnectionListData.save();
 
       pusher.trigger(userId, EventNamesEnum.channelCreated, {
         connectionUuid: connectionData.connectionId,
@@ -391,40 +339,42 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/channelSubscription", (req: Request, res: Response) => {
+  router.post("/channelSubscription", async (req: Request, res: Response) => {
     try {
       const {
         connectionId,
         requesterId,
       }: { connectionId: string; requesterId: string } = req.body;
+      // find and add user to connection
+      const connectionData = await Connection.findOne({ connectionId });
 
-      let connectionDataIndex;
-
-      const connectionData = connectionDb.find((connection, index) => {
-        connectionDataIndex = index;
-        return connection.connectionId === connectionId;
-      });
-
-      if (!connectionData || typeof connectionDataIndex === "undefined") {
+      if (!connectionData) {
         console.log("no such connection"); // TODO throw error here
         throw Error("no such connection!!!");
       }
 
-      // add user to connection
+      connectionData.participants.push(requesterId);
 
-      connectionDb[connectionDataIndex].participants.push(requesterId);
+      await connectionData.save();
+      // add connection to user connection data
+      const userConnectionListData = await UserConnectionList.findOne({
+        requesterId,
+      });
 
-      // TODO user-service communication
+      if (!userConnectionListData || userConnectionListData?.connectionList) {
+        console.log("no connection list!");
+        throw Error("NO connection list!");
+      }
 
-      /* tempUserData.connectionList.push({
+      userConnectionListData.connectionList.push({
         id: connectionData.connectionId,
         name: connectionData.connectionName,
         type: connectionData.connectionType,
         imageUrl: connectionData.imageUrl,
       });
 
-      userConnectionsDb[userDataIndex] = { ...tempUserData };
- */
+      await userConnectionListData.save();
+
       pusher.trigger(requesterId, EventNamesEnum.channelSubscribed, {
         connectionUuid: connectionData.connectionId,
         connectionName: connectionData.connectionName,
@@ -444,7 +394,7 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/channelUnsubscribe", (req: Request, res: Response) => {
+  router.post("/channelUnsubscribe", async (req: Request, res: Response) => {
     // TODO finish refactoring below
     try {
       const {
@@ -452,47 +402,37 @@ export const chatRouterInit = (pusher: Pusher) => {
         requesterId,
       }: { connectionId: string; requesterId: string } = req.body;
 
-      let userDataIndex;
+      // let userDataIndex;
 
-      const userData = userConnectionsDb.find((userData, index) => {
-        if (userData.userId === requesterId) {
-          userDataIndex = index;
-          return true;
-        }
-      });
+      const connectionData = await Connection.findOne({ connectionId });
 
-      if (!userData || typeof userDataIndex === "undefined") {
-        console.log("no such user");
-        throw Error("no such user!!!"); // TODO throw error here
-      }
-
-      // delete user from connection
-
-      let connectionDataIndex;
-
-      const connectionData = connectionDb.find((connection, index) => {
-        connectionDataIndex = index;
-        return connection.connectionId === connectionId;
-      });
-
-      if (!connectionData || typeof connectionDataIndex === "undefined") {
+      if (!connectionData) {
         console.log("no such connection"); // TODO throw error here
         throw Error("no such connection!!!");
       }
 
-      connectionDb[connectionDataIndex].participants.filter(
-        (participant) => participant !== userData.userId
+      connectionData.participants.filter(
+        (participant) => participant !== requesterId
       );
 
-      //
+      await connectionData.save();
 
-      const tempUserData = { ...userData };
+      // add connection to user connection data
+      const userConnectionListData = await UserConnectionList.findOne({
+        requesterId,
+      });
 
-      tempUserData.connectionList = tempUserData.connectionList.filter(
-        (connection) => connection.id !== connectionId
-      );
+      if (!userConnectionListData || userConnectionListData?.connectionList) {
+        console.log("no connection list!");
+        throw Error("NO connection list!");
+      }
 
-      userConnectionsDb[userDataIndex] = { ...tempUserData };
+      userConnectionListData.connectionList =
+        userConnectionListData.connectionList.filter(
+          (connection: any) => connection.id !== connectionId
+        );
+
+      await userConnectionListData.save();
 
       pusher.trigger(requesterId, EventNamesEnum.channelUnsubscribed, {
         connectionUuid: connectionData.connectionId,
@@ -510,70 +450,75 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/directConnectionRequest", (req: Request, res: Response) => {
-    try {
-      const {
-        userId,
-        requesterId,
-        requesterName,
-      }: {
-        userId: string;
-        connectionId: string;
-        requesterId: string;
-        requesterName: string;
-      } = req.body;
+  router.post(
+    "/directConnectionRequest",
+    async (req: Request, res: Response) => {
+      try {
+        const {
+          userId,
+          requesterId,
+          requesterName,
+        }: {
+          userId: string;
+          connectionId: string;
+          requesterId: string;
+          requesterName: string;
+        } = req.body;
 
-      let connectionRequestIndex;
-      const connectionRequestData = connectionRequestDb.find(
-        (conectionRequest, index) => {
-          connectionRequestIndex = index;
-          return conectionRequest.userId === userId;
+        const connectionRequestData = await ConnectionRequest.findOne({
+          userId,
+        });
+
+        const tempConnectionRequestData = {
+          userId: requesterId,
+          userName: requesterName,
+        };
+
+        if (
+          connectionRequestData /* &&
+          typeof connectionRequestIndex !== "undefined" */
+        ) {
+          // connectionRequestDb[connectionRequestIndex].requesters.push(
+          // tempConnectionRequestData
+          // );
+
+          connectionRequestData.requesters.push(tempConnectionRequestData);
+
+          await connectionRequestData.save();
+        } else {
+          // connectionRequestDb.push({
+          // userId,
+          // requesters: [tempConnectionRequestData],
+          // });
+
+          const newConnectionRequest = new ConnectionRequest({
+            userId,
+            requesters: [tempConnectionRequestData],
+          });
+
+          await newConnectionRequest.save();
         }
-      );
 
-      const tempConnectionRequestData = {
-        userId: requesterId,
-        userName: requesterName,
-      };
-
-      if (
-        connectionRequestData &&
-        typeof connectionRequestIndex !== "undefined"
-      ) {
-        connectionRequestDb[connectionRequestIndex].requesters.push(
+        pusher.trigger(
+          userId,
+          EventNamesEnum.directConnectionRequest,
           tempConnectionRequestData
         );
-      } else {
-        connectionRequestDb.push({
-          userId,
-          requesters: [tempConnectionRequestData],
+
+        res.send({
+          status: "success",
+          data: {},
         });
+      } catch (error) {
+        console.error(
+          `directConnectionRequestReq error:: ${(error as Error).message}`
+        );
+        throw error;
       }
-
-      pusher.trigger(
-        userId,
-        EventNamesEnum.directConnectionRequest,
-        tempConnectionRequestData
-      );
-
-      console.log("logs before send directConnectionRequestReq");
-
-      console.log("connection request DB");
-      console.log(connectionRequestDb);
-
-      res.send({
-        status: "success",
-        data: {},
-      });
-    } catch (error) {
-      console.error(
-        `directConnectionRequestReq error:: ${(error as Error).message}`
-      );
-      throw error;
     }
-  });
+  );
 
-  router.post("/connectionAccepted", (req: Request, res: Response) => {
+  router.post("/connectionAccepted", async (req: Request, res: Response) => {
     try {
       const {
         userId,
@@ -585,36 +530,34 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       // clean from requesters -> get userId from there for both and add to DB
 
-      let connectionRequestIndex;
+      // let connectionRequestIndex;
 
-      const connectionRequestData = connectionRequestDb.find(
-        (connectionRequest, index) => {
-          connectionRequestIndex = index;
-          return connectionRequest.userId === userId;
-        }
-      );
+      // const connectionRequestData = connectionRequestDb.find(
+      // (connectionRequest, index) => {
+      // connectionRequestIndex = index;
+      // return connectionRequest.userId === userId;
+      // }
+      // );
 
-      console.log("userId");
-      console.log(userId);
-      connectionRequestDb.forEach((test) => {
-        console.log(test);
-      });
-
-      console.log("connection request data");
-      console.log(connectionRequestData);
+      const connectionRequestData = await ConnectionRequest.findOne({ userId });
 
       if (
-        !connectionRequestData ||
-        typeof connectionRequestIndex === "undefined"
+        !connectionRequestData /* ||
+        typeof connectionRequestIndex === "undefined" */
       ) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
 
-      connectionRequestDb[connectionRequestIndex].requesters =
-        connectionRequestDb[connectionRequestIndex].requesters.filter(
-          (requester) => requester.userId !== requesterId
-        );
+      connectionRequestData.requesters.filter(
+        (requester) => requester.userId !== requesterId
+      );
+
+      await connectionRequestData.save();
+      // connectionRequestDb[connectionRequestIndex].requesters =
+      // connectionRequestDb[connectionRequestIndex].requesters.filter(
+      // (requester) => requester.userId !== requesterId
+      // );
 
       // check requester existance
 
@@ -622,7 +565,9 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       // first request to user-service -> than emit event to connection service -> emit Pusher event
 
-      let requesterConnectionIndex;
+      /* let requesterConnectionIndex;
+
+      UserConnectionList.findOne({ userId: requesterId });
 
       userConnectionsDb.find((userConnections, index) => {
         requesterConnectionIndex = index;
@@ -633,10 +578,10 @@ export const chatRouterInit = (pusher: Pusher) => {
         console.log("no user found!!!");
         return Error("no user found");
       }
-
+ */
       // check approver existence
 
-      let approverConnectionIndex;
+      /* let approverConnectionIndex;
 
       userConnectionsDb.find((userConnections, index) => {
         approverConnectionIndex = index;
@@ -647,9 +592,8 @@ export const chatRouterInit = (pusher: Pusher) => {
         console.log("no approver found!!!");
         return Error("no approver found");
       }
-
+ */
       // adding connection to DB
-
       const connectionUuid = uuid();
 
       const connectionData = {
@@ -662,11 +606,63 @@ export const chatRouterInit = (pusher: Pusher) => {
         imageUrl: "",
       };
 
-      connectionDb.push(connectionData);
+      const tempConnectinData = new Connection(connectionData);
+      await tempConnectinData.save();
+
+      // connectionDb.push(connectionData);
 
       // adding connection to requester TODO move this logic to user-service
+      // TODO user-service communication
 
-      userConnectionsDb[requesterConnectionIndex].connectionList.push({
+      const userConnectionData = await UserConnectionList.findOne({
+        userId: userId,
+      });
+
+      console.log("userId");
+      console.log(userConnectionData);
+
+      if (
+        !userConnectionData ||
+        typeof userConnectionData?.connectionList === "undefined"
+      ) {
+        console.log("no connection list!");
+        throw Error("NO connection list!");
+      }
+
+      userConnectionData.connectionList.push({
+        id: connectionUuid,
+        name: connectionData.connectionName,
+        type: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
+      });
+
+      await userConnectionData.save();
+
+      const requesterConnectionData = await UserConnectionList.findOne({
+        userId: requesterId,
+      });
+
+      console.log("requesterId");
+      console.log(requesterConnectionData);
+
+      if (
+        !requesterConnectionData ||
+        typeof requesterConnectionData?.connectionList === "undefined"
+      ) {
+        console.log("no connection list!");
+        throw Error("NO connection list!");
+      }
+
+      requesterConnectionData.connectionList.push({
+        id: connectionUuid,
+        name: connectionData.connectionName,
+        type: connectionData.connectionType,
+        imageUrl: connectionData.imageUrl,
+      });
+
+      await requesterConnectionData.save();
+
+      /*  userConnectionsDb[requesterConnectionIndex].connectionList.push({
         id: connectionUuid,
         name: connectionData.connectionName,
         type: connectionData.connectionType,
@@ -680,7 +676,7 @@ export const chatRouterInit = (pusher: Pusher) => {
         name: connectionData.connectionName,
         type: connectionData.connectionType,
         imageUrl: connectionData.imageUrl,
-      });
+      }); */
 
       // pusher triggers
 
@@ -702,14 +698,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         imageUrl: connectionData.imageUrl,
       });
 
-      console.log("logs before send connectionAcceptedReq");
-
-      console.log("connection request DB");
-      console.log(connectionRequestDb);
-
-      console.log("user connections Db");
-      console.log({ ...userConnectionsDb });
-
       res.send({
         status: "success",
         data: {},
@@ -722,7 +710,7 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/connectionRejected", (req: Request, res: Response) => {
+  router.post("/connectionRejected", async (req: Request, res: Response) => {
     try {
       const {
         userId,
@@ -732,27 +720,34 @@ export const chatRouterInit = (pusher: Pusher) => {
         requesterId: string;
       } = req.body;
 
-      let connectionRequestIndex;
+      // let connectionRequestIndex;
 
-      const connectionRequestData = connectionRequestDb.find(
-        (connectionRequest, index) => {
-          connectionRequestIndex = index;
-          return connectionRequest.userId === userId;
-        }
-      );
+      // const connectionRequestData = connectionRequestDb.find(
+      // (connectionRequest, index) => {
+      // connectionRequestIndex = index;
+      // return connectionRequest.userId === userId;
+      // }
+      // );
+      const connectionRequestData = await ConnectionRequest.findOne({ userId });
 
       if (
-        !connectionRequestData ||
-        typeof connectionRequestIndex === "undefined"
+        !connectionRequestData /* ||
+        typeof connectionRequestIndex === "undefined" */
       ) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
 
-      connectionRequestDb[connectionRequestIndex].requesters =
-        connectionRequestDb[connectionRequestIndex].requesters.filter(
-          (requester) => requester.userId !== requesterId
-        );
+      // connectionRequestDb[connectionRequestIndex].requesters =
+      // connectionRequestDb[connectionRequestIndex].requesters.filter(
+      // (requester) => requester.userId !== requesterId
+      // );
+
+      connectionRequestData.requesters.filter(
+        (requester) => requester.userId !== requesterId
+      );
+
+      await connectionRequestData.save();
 
       pusher.trigger(requesterId, EventNamesEnum.connectionRejected, {
         requesterId,
@@ -763,14 +758,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         requesterId,
         rejecterId: userId,
       });
-
-      console.log("logs before send connectionRejectedReq");
-
-      console.log("connection request DB");
-      console.log(connectionRequestDb);
-
-      console.log("user connections Db");
-      console.log(userConnectionsDb);
 
       res.send({
         status: "success",
@@ -784,8 +771,7 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/getHistory", (req: Request, res: Response) => {
-    // TODO refactor
+  router.post("/getHistory", async (req: Request, res: Response) => {
     try {
       const {
         userId,
@@ -795,9 +781,11 @@ export const chatRouterInit = (pusher: Pusher) => {
         connectionId: string;
       } = req.body;
 
-      const connectionData = connectionDb.find((connection) => {
+      /* const connectionData = connectionDb.find((connection) => {
         return connection.connectionId === connectionId;
-      });
+      }); */
+
+      const connectionData = await Connection.findOne({ connectionId });
 
       if (!connectionData) {
         console.log("No connection found!!!");
@@ -811,10 +799,11 @@ export const chatRouterInit = (pusher: Pusher) => {
         throw Error("No connection access allowed!!!"); // TODO throw error here
       }
 
-      const history = getArchiveMsgList(connectionId);
+      const history = await getArchiveMsgList(connectionId);
 
-      console.log("getHistoryReq logs");
-      console.log(msgDb);
+      console.log("archive db");
+      const test = await ArchivedConnectionData.find({});
+      console.log(test);
 
       pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
         connectionId,
@@ -831,7 +820,7 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/getHistoryBySelectedConnections", (req, res) => {
+  router.post("/getHistoryBySelectedConnections", async (req, res) => {
     // !!! transfer to Map(Object)
     try {
       const {
@@ -859,25 +848,42 @@ export const chatRouterInit = (pusher: Pusher) => {
       }
  */
 
-      console.log("selected connection id list");
-      console.log(selectedConnectionIdList);
+      /* const msgHistoryData = await selectedConnectionIdList.map(
+        async (connectionId) => {
+          const msgArchivedData = await ArchivedConnectionData.findOne({
+            connectionId,
+          });
 
-      const msgHistoryData = selectedConnectionIdList.map((connectionId) => {
-        const msgData = msgDb.find((msgArchiveData) => {
-          return msgArchiveData.connectionId === connectionId;
-        });
+          console.log("msg archived data");
+          console.log(msgArchivedData);
 
-        return {
-          connectionId,
-          msgList:
-            msgData && msgData.connectionMessages.length
-              ? msgData.connectionMessages
-              : [],
-        };
-      });
+          return {
+            connectionId,
+            msgList:
+              msgArchivedData && msgArchivedData.connectionMessages.length
+                ? msgArchivedData.connectionMessages
+                : [],
+          };
+        }
+      ); */
 
-      console.log("msg history data");
-      console.log(msgHistoryData);
+      const msgHistoryData = await Promise.all(
+        selectedConnectionIdList.map(async (connectionId) => {
+          const msgArchivedData = await ArchivedConnectionData.findOne({
+            connectionId,
+          });
+
+          console.log("msgHistoryData");
+          console.log(msgHistoryData);
+          return {
+            connectionId,
+            msgList:
+              msgArchivedData && msgArchivedData.connectionMessages.length
+                ? msgArchivedData.connectionMessages
+                : [],
+          };
+        })
+      );
 
       pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
         msgHistory: msgHistoryData,
@@ -893,18 +899,19 @@ export const chatRouterInit = (pusher: Pusher) => {
     }
   });
 
-  router.post("/getRequestersList", (req: Request, res: Response) => {
+  router.post("/getRequestersList", async (req: Request, res: Response) => {
     try {
       const { requesterId }: { requesterId: string } = req.body;
 
-      const requesterData = connectionRequestDb.find(
+      /*  const requesterData = connectionRequestDb.find(
         (connectionReq) => connectionReq.userId === requesterId
-      );
+      ); */
+
+      const requesterData = await ConnectionRequest.findOne({
+        userId: requesterId,
+      });
 
       const requesterList = requesterData ? requesterData.requesters : [];
-
-      console.log("getRequestersList logs");
-      console.log(connectionRequestDb);
 
       pusher.trigger(requesterId, MQEventNamesEnum.getRequesters, {
         requesters: [...requesterList],
@@ -919,6 +926,47 @@ export const chatRouterInit = (pusher: Pusher) => {
       throw error;
     }
   });
+
+  router.post(
+    "/getConnectionListByUserId",
+    async (req: Request, res: Response) => {
+      try {
+        const { userId }: { userId: string } = req.body;
+
+        const userConnectionInfo = await UserConnectionList.findOne({
+          userId,
+        });
+
+        if (!userConnectionInfo) {
+          const newConnectionList = new UserConnectionList({
+            userId,
+            connectionList: [],
+          });
+          await newConnectionList.save();
+        }
+
+        pusher.trigger(userId, "getConnections", {
+          connectionList: userConnectionInfo
+            ? [...userConnectionInfo.connectionList]
+            : [],
+        });
+
+        console.log("get connections");
+        const test = UserConnectionList.find();
+        console.log(test);
+
+        res.send({
+          status: "success",
+          data: {},
+        });
+      } catch (error) {
+        console.error(
+          `getConnectionListByUserId error:: ${(error as Error).message}`
+        );
+        throw error;
+      }
+    }
+  );
 
   return router;
 };

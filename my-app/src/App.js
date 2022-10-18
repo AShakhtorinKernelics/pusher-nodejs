@@ -48,27 +48,13 @@ class App extends Component {
           userId: "lehusUserId",
           userName: "Lehus",
           selfConnectionId: "",
-          connectionList: [
-            {
-              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
-              name: "myChannel",
-              type: ConnectionEnum.channel,
-              imageUrl: "",
-            },
-          ],
+          connectionList: [],
         },
         {
           userId: "testUserId",
           userName: "TestUser",
           selfConnectionId: "",
-          connectionList: [
-            {
-              id: "302ec818-b042-4240-bc54-4e6fb80f6636",
-              name: "myChannel",
-              type: ConnectionEnum.channel,
-              imageUrl: "",
-            },
-          ],
+          connectionList: [],
         },
       ],
       userRequestList: [],
@@ -128,6 +114,10 @@ class App extends Component {
           ),
         ],
       });
+
+      axios.post("http://localhost:5000/getConnectionListByUserId", {
+        userId: this.state.selectedUser.userId,
+      });
     });
 
     channel.bind(EventNamesEnum.msgFromConnection, (data) => {
@@ -152,10 +142,6 @@ class App extends Component {
       tempState[connectionId].push({ ...payload });
 
       this.setState({ connectionMsgMap: tempState });
-    });
-
-    channel.bind(EventNamesEnum.channelPost, (data) => {
-      console.log("channelPost event");
     });
 
     channel.bind(EventNamesEnum.directConnectionRequest, (data) => {
@@ -280,7 +266,12 @@ class App extends Component {
     channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
       let tempState = { ...this.state.connectionMsgMap };
+      console.log(data);
       data.msgHistory.forEach((connectionHistory) => {
+
+        console.log('get History');
+        console.log(connectionHistory);
+
         tempState[connectionHistory.connectionId] = [
           ...connectionHistory.msgList,
         ];
@@ -295,6 +286,12 @@ class App extends Component {
       console.log("getRequesters event");
 
       this.setState({ userRequestList: data.requesters });
+    });
+
+    channel.bind(MQEventNamesEnum.getConnections, (data) => {
+      console.log("getConnections event");
+
+      this.setState({ connections: data.connectionList });
     });
   }
 
@@ -325,7 +322,7 @@ class App extends Component {
   }
 
   selectUser(e) {
-    console.log('select user');
+    console.log("select user");
     const selectedUser = this.state.usersList.find((user) => user.userId === e);
 
     this.setState({
@@ -337,7 +334,8 @@ class App extends Component {
   }
 
   selectConnection(e) {
-    console.log('select connection');
+    console.log("select connection");
+
     const connectionData = this.state.connections.find(
       (connection) => connection.id === e
     );

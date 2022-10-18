@@ -38,7 +38,7 @@ const connectionSchema = new mongoose.Schema(
     connectionType: {
       type: String,
       require: true,
-      enum: Object.values(ConnectionEnum),
+      // enum: Object.values(ConnectionEnum),
     },
     participants: {
       type: [String],
