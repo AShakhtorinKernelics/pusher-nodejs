@@ -76,16 +76,12 @@ export const chatRouterInit = (pusher: Pusher) => {
     senderId: string
   ) => {
     if (!connection.participantsCanWrite && connection.ownerId !== senderId) {
-      console.log("Sending error!!!"); // TODO throw error here
+      console.log("No writing permissions error!!!"); // TODO throw error here
       throw Error("No writing permissions");
     }
   };
 
   const archiveMsg = async (connectionId: string, msgPayload: archivedMsg) => {
-    /* const connectionHistory = msgDb.find(
-      (historyData) => historyData.connectionId === connectionId
-    ); */
-
     const connectionHistory = await ArchivedConnectionData.findOne({
       connectionId,
     });
@@ -101,20 +97,11 @@ export const chatRouterInit = (pusher: Pusher) => {
         connectionMessages: [msgPayload],
       });
 
-      /* msgDb.push({
-        connectionId,
-        connectionMessages: [msgPayload],
-      }); */
-
       await archivedConnectionData.save();
     }
   };
 
   const getArchiveMsgList = async (connectionId: string) => {
-    /* const connectionHistory = msgDb.find(
-      (historyData) => historyData.connectionId === connectionId
-    ); */
-
     const connectionHistory = await ArchivedConnectionData.findOne({
       connectionId,
     });
@@ -474,23 +461,10 @@ export const chatRouterInit = (pusher: Pusher) => {
           userName: requesterName,
         };
 
-        if (
-          connectionRequestData /* &&
-          typeof connectionRequestIndex !== "undefined" */
-        ) {
-          // connectionRequestDb[connectionRequestIndex].requesters.push(
-          // tempConnectionRequestData
-          // );
-
+        if (connectionRequestData) {
           connectionRequestData.requesters.push(tempConnectionRequestData);
-
           await connectionRequestData.save();
         } else {
-          // connectionRequestDb.push({
-          // userId,
-          // requesters: [tempConnectionRequestData],
-          // });
-
           const newConnectionRequest = new ConnectionRequest({
             userId,
             requesters: [tempConnectionRequestData],
@@ -527,24 +501,9 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         requesterId: string;
       } = req.body;
-
-      // clean from requesters -> get userId from there for both and add to DB
-
-      // let connectionRequestIndex;
-
-      // const connectionRequestData = connectionRequestDb.find(
-      // (connectionRequest, index) => {
-      // connectionRequestIndex = index;
-      // return connectionRequest.userId === userId;
-      // }
-      // );
-
       const connectionRequestData = await ConnectionRequest.findOne({ userId });
 
-      if (
-        !connectionRequestData /* ||
-        typeof connectionRequestIndex === "undefined" */
-      ) {
+      if (!connectionRequestData) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
@@ -554,46 +513,7 @@ export const chatRouterInit = (pusher: Pusher) => {
       );
 
       await connectionRequestData.save();
-      // connectionRequestDb[connectionRequestIndex].requesters =
-      // connectionRequestDb[connectionRequestIndex].requesters.filter(
-      // (requester) => requester.userId !== requesterId
-      // );
 
-      // check requester existance
-
-      // TODO replace below with EXTRA req to user-service -> future answer is sent via event from user-service
-
-      // first request to user-service -> than emit event to connection service -> emit Pusher event
-
-      /* let requesterConnectionIndex;
-
-      UserConnectionList.findOne({ userId: requesterId });
-
-      userConnectionsDb.find((userConnections, index) => {
-        requesterConnectionIndex = index;
-        return userConnections.userId === requesterId;
-      });
-
-      if (typeof requesterConnectionIndex === "undefined") {
-        console.log("no user found!!!");
-        return Error("no user found");
-      }
- */
-      // check approver existence
-
-      /* let approverConnectionIndex;
-
-      userConnectionsDb.find((userConnections, index) => {
-        approverConnectionIndex = index;
-        return userConnections.userId === userId;
-      });
-
-      if (typeof approverConnectionIndex === "undefined") {
-        console.log("no approver found!!!");
-        return Error("no approver found");
-      }
- */
-      // adding connection to DB
       const connectionUuid = uuid();
 
       const connectionData = {
@@ -609,17 +529,9 @@ export const chatRouterInit = (pusher: Pusher) => {
       const tempConnectinData = new Connection(connectionData);
       await tempConnectinData.save();
 
-      // connectionDb.push(connectionData);
-
-      // adding connection to requester TODO move this logic to user-service
-      // TODO user-service communication
-
       const userConnectionData = await UserConnectionList.findOne({
         userId: userId,
       });
-
-      console.log("userId");
-      console.log(userConnectionData);
 
       if (
         !userConnectionData ||
@@ -642,9 +554,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: requesterId,
       });
 
-      console.log("requesterId");
-      console.log(requesterConnectionData);
-
       if (
         !requesterConnectionData ||
         typeof requesterConnectionData?.connectionList === "undefined"
@@ -661,24 +570,6 @@ export const chatRouterInit = (pusher: Pusher) => {
       });
 
       await requesterConnectionData.save();
-
-      /*  userConnectionsDb[requesterConnectionIndex].connectionList.push({
-        id: connectionUuid,
-        name: connectionData.connectionName,
-        type: connectionData.connectionType,
-        imageUrl: connectionData.imageUrl,
-      });
-
-      // adding connection to approver
-
-      userConnectionsDb[approverConnectionIndex].connectionList.push({
-        id: connectionUuid,
-        name: connectionData.connectionName,
-        type: connectionData.connectionType,
-        imageUrl: connectionData.imageUrl,
-      }); */
-
-      // pusher triggers
 
       pusher.trigger(requesterId, EventNamesEnum.connectionAccepted, {
         requesterId,
@@ -719,33 +610,17 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         requesterId: string;
       } = req.body;
-
-      // let connectionRequestIndex;
-
-      // const connectionRequestData = connectionRequestDb.find(
-      // (connectionRequest, index) => {
-      // connectionRequestIndex = index;
-      // return connectionRequest.userId === userId;
-      // }
-      // );
       const connectionRequestData = await ConnectionRequest.findOne({ userId });
 
-      if (
-        !connectionRequestData /* ||
-        typeof connectionRequestIndex === "undefined" */
-      ) {
+      if (!connectionRequestData) {
         console.log("No connection for approve");
         throw Error("No connection for approve"); // TODO throw error here
       }
 
-      // connectionRequestDb[connectionRequestIndex].requesters =
-      // connectionRequestDb[connectionRequestIndex].requesters.filter(
-      // (requester) => requester.userId !== requesterId
-      // );
-
-      connectionRequestData.requesters.filter(
-        (requester) => requester.userId !== requesterId
-      );
+      connectionRequestData.requesters =
+        connectionRequestData.requesters.filter(
+          (requester) => requester.userId !== requesterId
+        );
 
       await connectionRequestData.save();
 
@@ -780,11 +655,6 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         connectionId: string;
       } = req.body;
-
-      /* const connectionData = connectionDb.find((connection) => {
-        return connection.connectionId === connectionId;
-      }); */
-
       const connectionData = await Connection.findOne({ connectionId });
 
       if (!connectionData) {
@@ -801,13 +671,13 @@ export const chatRouterInit = (pusher: Pusher) => {
 
       const history = await getArchiveMsgList(connectionId);
 
-      console.log("archive db");
-      const test = await ArchivedConnectionData.find({});
-      console.log(test);
-
       pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
-        connectionId,
-        msgList: history,
+        msgHistory: [
+          {
+            connectionId,
+            msgList: history,
+          },
+        ],
       });
 
       res.send({
@@ -821,7 +691,6 @@ export const chatRouterInit = (pusher: Pusher) => {
   });
 
   router.post("/getHistoryBySelectedConnections", async (req, res) => {
-    // !!! transfer to Map(Object)
     try {
       const {
         userId,
@@ -830,53 +699,14 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         selectedConnectionIdList: string[];
       } = req.body;
-
-      // check user existence
-
-      //   let approverConnectionIndex;
-
-      // TODO user existance approved by access token
-
-      /* const userData = userConnectionsDb.find((userConnections, index) => {
-        approverConnectionIndex = index;
-        return userConnections.userId === userId;
-      });
-
-      if (!approverConnectionIndex) {
-        console.log("no approver found!!!");
-        return Error("no approver found");
-      }
- */
-
-      /* const msgHistoryData = await selectedConnectionIdList.map(
-        async (connectionId) => {
-          const msgArchivedData = await ArchivedConnectionData.findOne({
-            connectionId,
-          });
-
-          console.log("msg archived data");
-          console.log(msgArchivedData);
-
-          return {
-            connectionId,
-            msgList:
-              msgArchivedData && msgArchivedData.connectionMessages.length
-                ? msgArchivedData.connectionMessages
-                : [],
-          };
-        }
-      ); */
-
       const msgHistoryData = await Promise.all(
         selectedConnectionIdList.map(async (connectionId) => {
           const msgArchivedData = await ArchivedConnectionData.findOne({
             connectionId,
           });
 
-          console.log("msgHistoryData");
-          console.log(msgHistoryData);
           return {
-            connectionId,
+            connectionId: connectionId,
             msgList:
               msgArchivedData && msgArchivedData.connectionMessages.length
                 ? msgArchivedData.connectionMessages
@@ -902,10 +732,6 @@ export const chatRouterInit = (pusher: Pusher) => {
   router.post("/getRequestersList", async (req: Request, res: Response) => {
     try {
       const { requesterId }: { requesterId: string } = req.body;
-
-      /*  const requesterData = connectionRequestDb.find(
-        (connectionReq) => connectionReq.userId === requesterId
-      ); */
 
       const requesterData = await ConnectionRequest.findOne({
         userId: requesterId,
@@ -950,10 +776,6 @@ export const chatRouterInit = (pusher: Pusher) => {
             ? [...userConnectionInfo.connectionList]
             : [],
         });
-
-        console.log("get connections");
-        const test = UserConnectionList.find();
-        console.log(test);
 
         res.send({
           status: "success",
