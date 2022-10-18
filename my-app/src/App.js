@@ -106,15 +106,6 @@ class App extends Component {
         requesterId: this.state.selectedUser.userId,
       });
 
-      axios.post("http://localhost:5000/getHistoryBySelectedConnections", {
-        userId: this.state.selectedUser.userId,
-        selectedConnectionIdList: [
-          ...this.state.selectedUser.connectionList.map(
-            (connection) => connection.id
-          ),
-        ],
-      });
-
       axios.post("http://localhost:5000/getConnectionListByUserId", {
         userId: this.state.selectedUser.userId,
       });
@@ -247,8 +238,6 @@ class App extends Component {
     });
 
     channel.bind(EventNamesEnum.channelUnsubscribed, (data) => {
-      console.log("channelUnsubscribed event");
-
       const { connectionUuid } = data;
 
       const connectionList = [...this.state.connections];
@@ -266,12 +255,7 @@ class App extends Component {
     channel.bind(MQEventNamesEnum.getHistory, (data) => {
       console.log("getHistory event");
       let tempState = { ...this.state.connectionMsgMap };
-      console.log(data);
       data.msgHistory.forEach((connectionHistory) => {
-
-        console.log('get History');
-        console.log(connectionHistory);
-
         tempState[connectionHistory.connectionId] = [
           ...connectionHistory.msgList,
         ];
@@ -292,6 +276,13 @@ class App extends Component {
       console.log("getConnections event");
 
       this.setState({ connections: data.connectionList });
+
+      axios.post("http://localhost:5000/getHistoryBySelectedConnections", {
+        userId: this.state.selectedUser.userId,
+        selectedConnectionIdList: [
+          ...data.connectionList.map((connection) => connection.id),
+        ],
+      });
     });
   }
 
