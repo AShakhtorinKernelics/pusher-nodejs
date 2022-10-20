@@ -655,30 +655,35 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         connectionId: string;
       } = req.body;
-      const connectionData = await Connection.findOne({ connectionId });
 
-      if (!connectionData) {
-        console.log("No connection found!!!");
-        throw Error("No connection found!!!"); // TODO throw error here
-      }
+      const eventTrigger = async () => {
+        const connectionData = await Connection.findOne({ connectionId });
 
-      const isReqAllowed = checkConnectionAccess(connectionData, userId);
+        if (!connectionData) {
+          console.log("No connection found!!!");
+          throw Error("No connection found!!!"); // TODO throw error here
+        }
 
-      if (!isReqAllowed) {
-        console.log("No connection access allowed!!!");
-        throw Error("No connection access allowed!!!"); // TODO throw error here
-      }
+        const isReqAllowed = checkConnectionAccess(connectionData, userId);
 
-      const history = await getArchiveMsgList(connectionId);
+        if (!isReqAllowed) {
+          console.log("No connection access allowed!!!");
+          throw Error("No connection access allowed!!!"); // TODO throw error here
+        }
 
-      pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
-        msgHistory: [
-          {
-            connectionId,
-            msgList: history,
-          },
-        ],
-      });
+        const history = await getArchiveMsgList(connectionId);
+
+        pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
+          msgHistory: [
+            {
+              connectionId,
+              msgList: history,
+            },
+          ],
+        });
+      };
+
+      eventTrigger();
 
       res.send({
         status: "success",
@@ -699,25 +704,30 @@ export const chatRouterInit = (pusher: Pusher) => {
         userId: string;
         selectedConnectionIdList: string[];
       } = req.body;
-      const msgHistoryData = await Promise.all(
-        selectedConnectionIdList.map(async (connectionId) => {
-          const msgArchivedData = await ArchivedConnectionData.findOne({
-            connectionId,
-          });
 
-          return {
-            connectionId: connectionId,
-            msgList:
-              msgArchivedData && msgArchivedData.connectionMessages.length
-                ? msgArchivedData.connectionMessages
-                : [],
-          };
-        })
-      );
+      const eventTrigger = async () => {
+        const msgHistoryData = await Promise.all(
+          selectedConnectionIdList.map(async (connectionId) => {
+            const msgArchivedData = await ArchivedConnectionData.findOne({
+              connectionId,
+            });
 
-      pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
-        msgHistory: msgHistoryData,
-      });
+            return {
+              connectionId: connectionId,
+              msgList:
+                msgArchivedData && msgArchivedData.connectionMessages.length
+                  ? msgArchivedData.connectionMessages
+                  : [],
+            };
+          })
+        );
+
+        pusher.trigger(userId, MQEventNamesEnum.getAllHistory, {
+          msgHistory: msgHistoryData,
+        });
+      };
+
+      eventTrigger();
 
       res.send({
         status: "success",
@@ -733,15 +743,19 @@ export const chatRouterInit = (pusher: Pusher) => {
     try {
       const { requesterId }: { requesterId: string } = req.body;
 
-      const requesterData = await ConnectionRequest.findOne({
-        userId: requesterId,
-      });
+      const eventTrigger = async () => {
+        const requesterData = await ConnectionRequest.findOne({
+          userId: requesterId,
+        });
 
-      const requesterList = requesterData ? requesterData.requesters : [];
+        const requesterList = requesterData ? requesterData.requesters : [];
 
-      pusher.trigger(requesterId, MQEventNamesEnum.getRequesters, {
-        requesters: [...requesterList],
-      });
+        pusher.trigger(requesterId, MQEventNamesEnum.getRequesters, {
+          requesters: [...requesterList],
+        });
+      };
+
+      eventTrigger();
 
       res.send({
         status: "success",
@@ -759,23 +773,27 @@ export const chatRouterInit = (pusher: Pusher) => {
       try {
         const { userId }: { userId: string } = req.body;
 
-        const userConnectionInfo = await UserConnectionList.findOne({
-          userId,
-        });
-
-        if (!userConnectionInfo) {
-          const newConnectionList = new UserConnectionList({
+        const eventTrigger = async () => {
+          const userConnectionInfo = await UserConnectionList.findOne({
             userId,
-            connectionList: [],
           });
-          await newConnectionList.save();
-        }
 
-        pusher.trigger(userId, "getConnections", {
-          connectionList: userConnectionInfo
-            ? [...userConnectionInfo.connectionList]
-            : [],
-        });
+          if (!userConnectionInfo) {
+            const newConnectionList = new UserConnectionList({
+              userId,
+              connectionList: [],
+            });
+            await newConnectionList.save();
+          }
+
+          pusher.trigger(userId, "getConnections", {
+            connectionList: userConnectionInfo
+              ? [...userConnectionInfo.connectionList]
+              : [],
+          });
+        };
+
+        eventTrigger();
 
         res.send({
           status: "success",

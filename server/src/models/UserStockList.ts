@@ -2,12 +2,12 @@ import mongoose from "mongoose";
 
 interface UserStockListAttrs {
   userId: string;
-  stockIdList: string[];
+  stockSymbolList: string[];
 }
 
 interface UserStockListDoc extends mongoose.Document {
   userId: string;
-  stockIdList: string[];
+  stockSymbolList: string[];
 }
 
 interface UserStockListModel extends mongoose.Model<UserStockListDoc> {
@@ -20,7 +20,7 @@ const userStockListSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    stockIdList: {
+    stockSymbolList: {
       type: [String],
       required: true,
     },

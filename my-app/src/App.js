@@ -83,6 +83,39 @@ class App extends Component {
   }
 
   pusherInit(userId) {
+    console.log("pusher Init func");
+
+    // get company Info
+    const stockList = ["AAPL", "FB", "TSLA"].join(",");
+    const token = "sk_d49e4fe09bd64537913bf4f1c00adc2d";
+    const dataFilters = ["symbol", "industry", "companyName"].join(",");
+    /*axios
+      .get(
+        `https://cloud.iexapis.com/v1/stock/market/company?symbols=${stockList}&filter=${dataFilters}&token=${token}`
+      )
+      .then((res) => {
+        console.log("iex cloud company result");
+        console.log(res);
+      }); */
+
+    // get Ticker Info
+
+    /* const tickersDataFilters = [
+      "companyName",
+      "peRatio",
+      "day5ChangePercent",
+      "dividendYield",
+    ].join(",");
+
+    axios
+      .get(
+        `https://cloud.iexapis.com/v1/stock/market/stats?symbols=${stockList}&filter=${tickersDataFilters}&token=${token}`
+      )
+      .then((res) => {
+        console.log("iex cloud company result");
+        console.log(res);
+      });
+ */
     const pusher = new Pusher(constants.app_key, {
       cluster: constants.app_cluster,
     });

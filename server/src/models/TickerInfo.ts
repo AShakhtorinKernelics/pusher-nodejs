@@ -2,24 +2,24 @@ import mongoose from "mongoose";
 import { updateIfCurrentPlugin } from "mongoose-update-if-current";
 
 interface TickerInfoAttrs {
-  tickerId: string;
-  tickerName: string;
-  tickerDescription: string;
-  stockPrice: number;
-  pricePerEarning: number;
-  fiveDayReturn: number;
-  dividentYeel: string;
+  tickerSymbol: string;
+  companyName: string;
+  peRatio: string;
+  day5ChangePercent: string;
+  dividendYield: string;
 }
 
+/*  "companyName",
+      "peRatio",
+      "day5ChangePercent",
+      "dividendYield", */
+
 interface TickerInfoDoc extends mongoose.Document {
-  tickerId: string;
-  tickerName: string;
-  tickerDescription: string;
-  stockPrice: number;
-  pricePerEarning: number;
-  fiveDayReturn: number;
-  dividentYeel: string;
-  version: number;
+  tickerSymbol: string;
+  companyName: string;
+  peRatio: string;
+  day5ChangePercent: string;
+  dividendYield: string;
 }
 
 interface TickerInfoModel extends mongoose.Model<TickerInfoDoc> {
@@ -28,32 +28,24 @@ interface TickerInfoModel extends mongoose.Model<TickerInfoDoc> {
 
 const tickerInfoSchema = new mongoose.Schema(
   {
-    tickerId: {
+    tickerSymbol: {
       type: String,
       required: true,
     },
-    tickerName: {
+    companyName: {
       type: String,
       required: true,
     },
-    tickerDescription: {
+    peRatio: {
       type: String,
       required: true,
     },
-    stockPrice: {
+    day5ChangePercent: {
+      type: String,
+      required: true,
+    },
+    dividendYield: {
       type: Number,
-      required: true,
-    },
-    pricePerEarning: {
-      type: Number,
-      required: true,
-    },
-    fiveDayReturn: {
-      type: Number,
-      required: true,
-    },
-    dividentYeel: {
-      type: String,
       required: true,
     },
   },

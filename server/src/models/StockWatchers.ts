@@ -1,26 +1,26 @@
 import mongoose from "mongoose";
 
 interface StockWatchersAttrs {
-  stockId: string;
-  connectedTickerIdList: string[];
+  stockSymbol: string;
+  connectedUserIdList: string[];
 }
 
 interface StockWatchersDoc extends mongoose.Document {
-  stockId: string;
-  connectedTickerIdList: string[];
+  stockSymbol: string;
+  connectedUserIdList: string[];
 }
 
 interface StockWatchersModel extends mongoose.Model<StockWatchersDoc> {
   build(attrs: StockWatchersAttrs): StockWatchersDoc;
 }
 
-const stockWatchersSchema = new mongoose.Schema( // TODO stock id as key
+const stockWatchersSchema = new mongoose.Schema(
   {
-    stockId: {
+    stockSymbol: {
       type: String,
       required: true,
     },
-    connectedTickerIdList: {
+    connectedUserIdList: {
       type: [String],
       required: true,
     },
