@@ -1,25 +1,25 @@
 import express, { Response, Request } from "express";
-import { UserStockList } from "../models/UserStockList";
+import { UserWatchList } from "../models/UserWatchList";
 import { StockWatchers } from "../models/StockWatchers";
 
 const router = express.Router();
 
-router.post("/userStockList", async (req: Request, res: Response) => {
+router.post("/userWatchList", async (req: Request, res: Response) => {
   try {
     const { userId }: { userId: string } = req.body;
 
-    const userStockWatchlist = await UserStockList.findOne({ userId });
+    const userStockWatchlist = await UserWatchList.findOne({ userId });
 
     res.send({
       status: "success",
       data: {
-        stockSymbolList: userStockWatchlist
+        userStockWatchlist: userStockWatchlist
           ? userStockWatchlist.stockSymbolList
           : [],
       },
     });
   } catch (error) {
-    console.error(`userStockListReq error:: ${(error as Error).message}`);
+    console.error(`UserWatchListReq error:: ${(error as Error).message}`);
     throw error;
   }
 });
@@ -29,13 +29,13 @@ router.post("/addToWatchlist", async (req: Request, res: Response) => {
     const { userId, stockSymbol }: { userId: string; stockSymbol: string } =
       req.body;
 
-    const userStockWatchlist = await UserStockList.findOne({ userId });
+    const userStockWatchlist = await UserWatchList.findOne({ userId });
 
     if (userStockWatchlist) {
       userStockWatchlist.stockSymbolList.push(stockSymbol);
       await userStockWatchlist.save();
     } else {
-      const newWatchlist = UserStockList.build({
+      const newWatchlist = UserWatchList.build({
         userId,
         stockSymbolList: [stockSymbol],
       });
@@ -71,4 +71,4 @@ router.post("/addToWatchlist", async (req: Request, res: Response) => {
   }
 });
 
-export { router as WatchlistRouter };
+export { router as watchlistRouter };

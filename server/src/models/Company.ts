@@ -10,8 +10,6 @@ interface CompanyAttrs {
   address: string;
 }
 
-// "symbol", "industry", "companyName", description, tags, address
-
 interface CompanyDoc extends mongoose.Document {
   companySymbol: string;
   companyName: string;
@@ -25,6 +23,7 @@ interface CompanyModel extends mongoose.Model<CompanyDoc> {
   replaceAllWithNewValues(attrs: CompanyAttrs): Promise<{
     successCount: number;
     errorCount: number;
+    insertedCompanies: CompanyDoc;
   }>;
 }
 
@@ -74,7 +73,7 @@ companySchema.statics.replaceAllWithNewValues = async (
   try {
     let successCount = 0;
     let errorCount = 0;
-
+    const insertedCompanies: CompanyDoc[] = [];
     await Promise.all(
       attrs.map(async (recentData) => {
         const companyObj = await Company.findOne({
@@ -85,6 +84,7 @@ companySchema.statics.replaceAllWithNewValues = async (
             await companyObj.replaceOne({
               ...recentData,
             });
+            insertedCompanies.push(companyObj);
             successCount++;
           } catch (err) {
             errorCount++;
@@ -96,6 +96,7 @@ companySchema.statics.replaceAllWithNewValues = async (
               ...recentData,
             });
             await newEl.save();
+            insertedCompanies.push(newEl);
             successCount++;
           } catch (err) {
             errorCount++;
@@ -105,6 +106,7 @@ companySchema.statics.replaceAllWithNewValues = async (
       })
     );
     return Promise.resolve({
+      insertedCompanies,
       successCount,
       errorCount,
     });

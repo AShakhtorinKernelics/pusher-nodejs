@@ -85,17 +85,22 @@ class App extends Component {
 
   pusherInit(userId) {
     console.log("pusher Init func");
-
-    // get company Info
-    const stockList = ["AAPL", "FB", "TSLA"].join(",");
-    const token = "sk_d49e4fe09bd64537913bf4f1c00adc2d";
-    const dataFilters = ["symbol", "industry", "companyName"].join(",");
-    /*axios
-      .get(
-        `https://cloud.iexapis.com/v1/stock/market/company?symbols=${stockList}&filter=${dataFilters}&token=${token}`
-      )
+    axios
+      .post(`${connectionUrl}/userWatchList`, {
+        userId,
+      })
       .then((res) => {
-        console.log("iex cloud company result");
+        console.log("userWatchList result");
+        console.log(res);
+      });
+
+    /* axios
+      .post(`${connectionUrl}/addToWatchlist`, {
+        userId,
+        stockSymbol: "TSLA",
+      })
+      .then((res) => {
+        console.log("addToWatchlist result");
         console.log(res);
       }); */
 

@@ -6,7 +6,13 @@ import Pusher from "pusher";
 import { pusherConfig } from "./utils";
 import mongoose from "mongoose";
 // routes
-import { healthRouter, chatRouterInit } from "./routes";
+import {
+  healthRouter,
+  companyRouter,
+  tickerRouter,
+  watchlistRouter,
+  chatRouterInit,
+} from "./routes";
 
 import cors from "cors";
 import * as dotenv from "dotenv";
@@ -29,7 +35,7 @@ app.use(json());
 app.use(healthRouter);
 
 const pusher = new Pusher(pusherConfig());
-app.use(chatRouterInit(pusher));
+app.use([chatRouterInit(pusher), companyRouter, tickerRouter, watchlistRouter]);
 
 app.get("*", () => {
   throw new NotFoundError();

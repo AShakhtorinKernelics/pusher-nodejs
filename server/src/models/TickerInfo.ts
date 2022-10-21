@@ -9,11 +9,6 @@ interface TickerInfoAttrs {
   dividendYield: string;
 }
 
-/*  "companyName",
-      "peRatio",
-      "day5ChangePercent",
-      "dividendYield", */
-
 interface TickerInfoDoc extends mongoose.Document {
   tickerSymbol: string;
   companyName: string;
@@ -23,7 +18,11 @@ interface TickerInfoDoc extends mongoose.Document {
 }
 
 interface TickerInfoModel extends mongoose.Model<TickerInfoDoc> {
-  build(attrs: TickerInfoAttrs): TickerInfoDoc;
+  replaceAllWithNewValues(attrs: TickerInfoAttrs): Promise<{
+    successCount: number;
+    errorCount: number;
+    tickerInfoList: TickerInfoDoc;
+  }>;
 }
 
 const tickerInfoSchema = new mongoose.Schema(
@@ -62,8 +61,57 @@ const tickerInfoSchema = new mongoose.Schema(
 tickerInfoSchema.set("versionKey", "version");
 tickerInfoSchema.plugin(updateIfCurrentPlugin);
 
-tickerInfoSchema.statics.build = (attrs: TickerInfoAttrs) => {
+/* tickerInfoSchema.statics.build = (attrs: TickerInfoAttrs) => {
   return new TickerInfo(attrs);
+}; */
+
+tickerInfoSchema.statics.replaceAllWithNewValues = async (
+  attrs: TickerInfoAttrs[]
+) => {
+  try {
+    let successCount = 0;
+    let errorCount = 0;
+    const tickerInfoList: TickerInfoDoc[] = [];
+    await Promise.all(
+      attrs.map(async (recentData) => {
+        const tickerInfoObj = await TickerInfo.findOne({
+          tickerSymbol: recentData.tickerSymbol,
+        });
+        if (tickerInfoObj) {
+          try {
+            await tickerInfoObj.replaceOne({
+              ...recentData,
+            });
+            tickerInfoList.push(tickerInfoObj);
+            successCount++;
+          } catch (err) {
+            errorCount++;
+            console.log(`err on replace ${recentData.tickerSymbol}`);
+          }
+        } else {
+          try {
+            const newEl = new TickerInfo({
+              ...recentData,
+            });
+            await newEl.save();
+            tickerInfoList.push(newEl);
+            successCount++;
+          } catch (err) {
+            errorCount++;
+            console.log(`err on create ${recentData.tickerSymbol}`);
+          }
+        }
+      })
+    );
+    return Promise.resolve({
+      tickerInfoList,
+      successCount,
+      errorCount,
+    });
+  } catch (err) {
+    console.log("err on replace All with New");
+    throw err;
+  }
 };
 
 const TickerInfo = mongoose.model<TickerInfoDoc, TickerInfoModel>(

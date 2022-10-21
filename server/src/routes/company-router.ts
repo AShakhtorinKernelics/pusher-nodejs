@@ -4,38 +4,61 @@ import axios from "axios";
 
 const router = express.Router();
 
-/* router.post("/updateCompanyInfoInDb", async (req: Request, res: Response) => {
+router.post("/updateCompanyInfoInDb", async (req: Request, res: Response) => {
   try {
     //   const { listOfTickers, listOfFilters }: { listOfTickers: string[], listOfFilters: string[] } = req.body;
 
     const listOfTickers = ["AAPL", "FB", "TSLA"];
-    const listOfFilters = ["symbol", "industry", "companyName"];
+    const listOfFilters = [
+      "symbol",
+      "industry",
+      "companyName",
+      "description",
+      "tags",
+      "address",
+    ];
 
     const stockList = listOfTickers.join(",");
     const token = "sk_d49e4fe09bd64537913bf4f1c00adc2d";
     const dataFilters = listOfFilters.join(",");
-    const updatedData = await axios
-      .get(
-        `https://cloud.iexapis.com/v1/stock/market/company?symbols=${stockList}&filter=${dataFilters}&token=${token}`
-      );
+    const updatedData = await axios.get(
+      `https://cloud.iexapis.com/v1/stock/market/company?symbols=${stockList}&filter=${dataFilters}&token=${token}`
+    );
 
-    const companyInfo = await Company.upsertAll({ companyId });
+    console.log(updatedData);
 
-    // pusher.trigger(requesterId, MQEventNamesEnum.getRequesters, {
-    // requesters: [...requesterList],
-    // });
+    const companyDataToInsert = updatedData.data.map(
+      (companyData: any, index: number) => {
+        return {
+          companySymbol: listOfTickers[index],
+          companyName: companyData.companyName.trim(),
+          companyDescription: companyData.description.trim(),
+          industry: companyData.industry.trim(),
+          tags: companyData.tags,
+          address: companyData.address.trim(),
+        };
+      }
+    );
+
+    const { insertedCompanies, successCount, errorCount } =
+      await Company.replaceAllWithNewValues(companyDataToInsert);
+
+    console.log(`successCount: ${successCount}`);
+    console.log(`errorCount: ${errorCount}`);
 
     res.send({
       status: "success",
       data: {
-        companyInfo,
+        insertedCompanies,
       },
     });
   } catch (error) {
-    console.error(`getCompanyById error:: ${(error as Error).message}`);
+    console.error(
+      `updateCompanyInfoInDbReq error:: ${(error as Error).message}`
+    );
     throw error;
   }
-}); */
+});
 
 router.post("/getCompanyBySymbol", async (req: Request, res: Response) => {
   try {
@@ -91,4 +114,4 @@ router.get("/getAllCompanies", async (req: Request, res: Response) => {
   }
 });
 
-export { router as CompanyRouter };
+export { router as companyRouter };
