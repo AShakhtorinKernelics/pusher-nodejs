@@ -16,6 +16,7 @@ import {
   EventNamesEnum,
   ConnectionEnum,
 } from "./constants/constants";
+import { connectionUrl } from "./constants/connection-constants";
 import "./App.css";
 
 class App extends Component {
@@ -135,11 +136,11 @@ class App extends Component {
     channel.bind("pusher:subscription_succeeded", (data) => {
       console.log("after subscription succeded");
 
-      axios.post("http://localhost:5000/getRequestersList", {
+      axios.post(`${connectionUrl}/getRequestersList`, {
         requesterId: this.state.selectedUser.userId,
       });
 
-      axios.post("http://localhost:5000/getConnectionListByUserId", {
+      axios.post(`${connectionUrl}/getConnectionListByUserId`, {
         userId: this.state.selectedUser.userId,
       });
     });
@@ -310,7 +311,7 @@ class App extends Component {
 
       this.setState({ connections: data.connectionList });
 
-      axios.post("http://localhost:5000/getHistoryBySelectedConnections", {
+      axios.post(`${connectionUrl}/getHistoryBySelectedConnections`, {
         userId: this.state.selectedUser.userId,
         selectedConnectionIdList: [
           ...data.connectionList.map((connection) => connection.id),
@@ -322,7 +323,7 @@ class App extends Component {
   /* healthCheck() {
     axios.defaults.headers.common["Accept"] = "application/json";
 
-    axios.get("http://localhost:5000/api/health").then((response) => {
+    axios.get(`${connectionUrl}/api/health`).then((response) => {
       console.log("Health Response!");
     });
   } */
@@ -335,7 +336,7 @@ class App extends Component {
       type: this.state.selectedConnection.type,
     };
 
-    axios.post("http://localhost:5000/sendMessageToConnection", {
+    axios.post(`${connectionUrl}/sendMessageToConnection`, {
       connectionId: this.state.selectedConnection.id,
       payload,
     });
@@ -373,7 +374,7 @@ class App extends Component {
     console.log("Accept user request");
     console.log(e); // userId
 
-    axios.post("http://localhost:5000/connectionAccepted", {
+    axios.post(`${connectionUrl}/connectionAccepted`, {
       userId: this.state.selectedUser.userId,
       requesterId: e,
     });
@@ -383,7 +384,7 @@ class App extends Component {
     console.log("Reject user request");
     console.log(e); // userId
 
-    axios.post("http://localhost:5000/connectionRejected", {
+    axios.post(`${connectionUrl}/connectionRejected`, {
       userId: this.state.selectedUser.userId,
       requesterId: e,
     });
@@ -392,7 +393,7 @@ class App extends Component {
   handleNewUserConnectionReq(e) {
     console.log("Handle new user request");
 
-    axios.post("http://localhost:5000/directConnectionRequest", {
+    axios.post(`${connectionUrl}/directConnectionRequest`, {
       userId: this.state.userIdForConnectionRequest,
       requesterId: this.state.selectedUser.userId,
       requesterName: this.state.selectedUser.userName,
@@ -402,7 +403,7 @@ class App extends Component {
   handleNewChannelRequest(e) {
     console.log("Handle new user request");
 
-    axios.post("http://localhost:5000/channelCreation", {
+    axios.post(`${connectionUrl}/channelCreation`, {
       userId: this.state.selectedUser.userId,
       channelName: this.state.channelName,
     });
@@ -411,7 +412,7 @@ class App extends Component {
   handleNewChannelSubscriptionRequest(e) {
     console.log("Handle new channel subscription");
 
-    axios.post("http://localhost:5000/channelSubscription", {
+    axios.post(`${connectionUrl}/channelSubscription`, {
       connectionId: this.state.channelIdForSubscribe,
       requesterId: this.state.selectedUser.userId,
     });
