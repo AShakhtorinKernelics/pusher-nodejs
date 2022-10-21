@@ -1,1 +1,1 @@
-export const connectionUrl = "localhost:5000";
+export const connectionUrl = "http://localhost:5000";
