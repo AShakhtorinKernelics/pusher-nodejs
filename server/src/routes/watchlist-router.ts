@@ -1,6 +1,7 @@
 import express, { Response, Request } from "express";
 import { UserWatchList } from "../models/UserWatchList";
 import { StockWatchers } from "../models/StockWatchers";
+import { TickerInfo } from "../models/TickerInfo";
 
 const router = express.Router();
 
@@ -29,15 +30,31 @@ router.post("/addToWatchlist", async (req: Request, res: Response) => {
     const { userId, stockSymbol }: { userId: string; stockSymbol: string } =
       req.body;
 
-    const userStockWatchlist = await UserWatchList.findOne({ userId });
+    const [userStockWatchlist, stockAdditionalInfo] = await Promise.all([
+      UserWatchList.findOne({ userId }),
+      TickerInfo.findOne({
+        tickerSymbol: stockSymbol,
+      }),
+    ]);
+
+    if (!stockAdditionalInfo) {
+      console.log("No such stock!!");
+      throw Error("No such stock!!");
+    }
+
+    const watchlistObj = {
+      tickerSymbol: stockSymbol,
+      companyName: stockAdditionalInfo.companyName,
+      dividendYield: stockAdditionalInfo.dividendYield,
+    };
 
     if (userStockWatchlist) {
-      userStockWatchlist.stockSymbolList.push(stockSymbol);
+      userStockWatchlist.stockSymbolList.push(watchlistObj);
       await userStockWatchlist.save();
     } else {
       const newWatchlist = UserWatchList.build({
         userId,
-        stockSymbolList: [stockSymbol],
+        stockSymbolList: [watchlistObj],
       });
       await newWatchlist.save();
     }
@@ -62,7 +79,7 @@ router.post("/addToWatchlist", async (req: Request, res: Response) => {
       data: {
         stockIdList: userStockWatchlist
           ? userStockWatchlist.stockSymbolList
-          : [stockSymbol],
+          : [watchlistObj],
       },
     });
   } catch (error) {

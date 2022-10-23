@@ -1,6 +1,8 @@
 import express, { Response, Request } from "express";
 import { TickerInfo } from "../models/TickerInfo";
 import axios from "axios";
+import { StockWatchers } from "../models/StockWatchers";
+import { UserWatchList } from "../models/UserWatchList";
 
 const router = express.Router();
 
@@ -25,8 +27,24 @@ router.post("/updateTickerInfoInDb", async (req: Request, res: Response) => {
       `https://cloud.iexapis.com/v1/stock/market/stats?symbols=${stockList}&filter=${dataFilters}&token=${token}`
     );
 
+    // const tempUserObj: { [key: string]: string[] } = {};
+
     const tickerDataToInsert = updatedData.data.map(
       (tickerData: any, index: number) => {
+        /* const tempWatchData = await StockWatchers.findOne({
+          stockSymbol: listOfTickers[index],
+        });
+
+        if (tempWatchData) {
+          tempWatchData.connectedUserIdList.forEach((userId: string) => {
+            if (tempUserObj[userId]) {
+              tempUserObj[userId].push(tickerData.tickerSymbol);
+            } else {
+              tempUserObj[userId] = [tickerData.tickerSymbol];
+            }
+          });
+        } */
+
         return {
           tickerSymbol: listOfTickers[index],
           companyName: tickerData.companyName.trim(),
@@ -42,6 +60,25 @@ router.post("/updateTickerInfoInDb", async (req: Request, res: Response) => {
 
     console.log(`successCount: ${successCount}`);
     console.log(`errorCount: ${errorCount}`);
+
+    /* if (successCount) {
+      Object.keys(tempUserObj).forEach(async (key) => {
+        const userWatchList = await UserWatchList.findOne({
+          userId: key,
+        });
+
+        if (userWatchList) {
+          let stockIndex;
+          userWatchList.stockSymbolList.forEach((stock, index: number) => {
+            tempUserObj[key].find((obj) => obj === stock.tickerSymbol);
+          });
+
+          if () {
+
+          }
+        }
+      });
+    } */
 
     res.send({
       status: "success",

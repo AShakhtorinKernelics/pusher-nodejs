@@ -48,13 +48,13 @@ class App extends Component {
         {
           userId: "lehusUserId",
           userName: "Lehus",
-          selfConnectionId: "",
+          // selfConnectionId: "",
           connectionList: [],
         },
         {
           userId: "testUserId",
           userName: "TestUser",
-          selfConnectionId: "",
+          // selfConnectionId: "",
           connectionList: [],
         },
       ],

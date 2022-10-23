@@ -1,13 +1,19 @@
 import mongoose from "mongoose";
 
+interface WatchlistStock {
+  tickerSymbol: string;
+  companyName: string;
+  dividendYield: string;
+}
+
 interface UserWatchListAttrs {
   userId: string;
-  stockSymbolList: string[];
+  stockSymbolList: WatchlistStock[];
 }
 
 interface UserWatchListDoc extends mongoose.Document {
   userId: string;
-  stockSymbolList: string[];
+  stockSymbolList: WatchlistStock[];
 }
 
 interface UserWatchListModel extends mongoose.Model<UserWatchListDoc> {
@@ -21,7 +27,13 @@ const userWatchListSchema = new mongoose.Schema(
       required: true,
     },
     stockSymbolList: {
-      type: [String],
+      type: [
+        {
+          tickerSymbol: String,
+          companyName: String,
+          dividendYield: String,
+        },
+      ],
       required: true,
     },
   },
